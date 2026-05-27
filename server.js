@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -20,7 +21,7 @@ if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, '[]');
 const readJSON = (file) => JSON.parse(fs.readFileSync(file, 'utf-8'));
 const writeJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
 const genId = (prefix = '') => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-const hashPw = (pw) => crypto.createHash('sha256').update(pw).digest('hex');
+const BCRYPT_ROUNDS = 10;
 const genToken = () => crypto.randomBytes(32).toString('hex');
 
 // Inicializa staff.json com admin padrão se não existir
@@ -30,7 +31,7 @@ if (!fs.existsSync(STAFF_FILE)) {
       id: 'admin',
       name: 'Administrador',
       username: 'admin',
-      password: hashPw('admin123'),
+      password: bcrypt.hashSync('admin123', BCRYPT_ROUNDS),
       role: 'admin',
       permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios'],
       active: true,
@@ -98,14 +99,14 @@ app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'ad
 app.get('/funcionarios', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'funcionarios.html')));
 
 // ===== API: AUTENTICAÇÃO =====
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Usuário e senha obrigatórios' });
   const staff = readJSON(STAFF_FILE);
   const user = staff.find(s => s.username === username && s.active);
-  if (!user || user.password !== hashPw(password)) {
-    return res.status(401).json({ error: 'Usuário ou senha inválidos' });
-  }
+  if (!user) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
   const token = genToken();
   sessions.set(token, { staffId: user.id, createdAt: Date.now() });
   res.json({
@@ -135,7 +136,7 @@ app.get('/api/admin/staff', requireAuth(['funcionarios']), (_req, res) => {
   res.json(staff);
 });
 
-app.post('/api/admin/staff', requireAuth(['funcionarios']), (req, res) => {
+app.post('/api/admin/staff', requireAuth(['funcionarios']), async (req, res) => {
   const { name, username, password, role, permissions } = req.body;
   if (!name || !username || !password) {
     return res.status(400).json({ error: 'Nome, usuário e senha são obrigatórios' });
@@ -148,7 +149,7 @@ app.post('/api/admin/staff', requireAuth(['funcionarios']), (req, res) => {
     id: genId('u'),
     name,
     username,
-    password: hashPw(password),
+    password: await bcrypt.hash(password, BCRYPT_ROUNDS),
     role: role || 'funcionario',
     permissions: Array.isArray(permissions) ? permissions : ['cardapio'],
     active: true,
@@ -159,7 +160,7 @@ app.post('/api/admin/staff', requireAuth(['funcionarios']), (req, res) => {
   res.status(201).json({ id: newUser.id, name: newUser.name, username: newUser.username, role: newUser.role, permissions: newUser.permissions, active: newUser.active });
 });
 
-app.patch('/api/admin/staff/:id', requireAuth(['funcionarios']), (req, res) => {
+app.patch('/api/admin/staff/:id', requireAuth(['funcionarios']), async (req, res) => {
   const staff = readJSON(STAFF_FILE);
   const user = staff.find(s => s.id === req.params.id);
   if (!user) return res.status(404).json({ error: 'Funcionário não encontrado' });
@@ -172,7 +173,7 @@ app.patch('/api/admin/staff/:id', requireAuth(['funcionarios']), (req, res) => {
     }
     user.username = username;
   }
-  if (password) user.password = hashPw(password);
+  if (password) user.password = await bcrypt.hash(password, BCRYPT_ROUNDS);
   if (role !== undefined) user.role = role;
   if (Array.isArray(permissions)) user.permissions = permissions;
   if (active !== undefined) user.active = active;

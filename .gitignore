@@ -1,4 +1,5 @@
 node_modules/
 public/uploads/
 data/orders.json
+data/staff.json
 .env

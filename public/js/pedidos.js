@@ -161,5 +161,9 @@ $('#filters').addEventListener('click', (e) => {
   render();
 });
 
-fetchOrders();
-setInterval(fetchOrders, 5000);
+(async () => {
+  const user = await Auth.init('pedidos');
+  if (!user) return;
+  fetchOrders();
+  setInterval(fetchOrders, 5000);
+})();

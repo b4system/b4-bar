@@ -440,4 +440,9 @@ $('#removeImg').addEventListener('click', (e) => {
 });
 
 renderEmojiGrid();
-loadMenu();
+
+(async () => {
+  const user = await Auth.init('produtos');
+  if (!user) return;
+  loadMenu();
+})();

@@ -259,6 +259,8 @@ $('#clearCart').addEventListener('click', clearCart);
 });
 
 (async function init() {
+  const user = await Auth.init('garcom');
+  if (!user) return;
   await loadMenu();
   loadDraft();
   renderCart();

@@ -85,9 +85,6 @@ function renderMenu() {
       <div class="menu-grid">
         ${cat.items.map(it => `
           <article class="menu-item">
-            <div class="menu-item-thumb ${!it.image ? 'empty' : ''}"
-                 ${it.image ? `style="background-image:url('${it.image}');"` : ''}
-                 data-icon="${cat.icon}"></div>
             <div class="menu-item-body">
               <h3 class="menu-item-name">${it.name}</h3>
               <p class="menu-item-desc">${it.description || ''}</p>
@@ -95,6 +92,9 @@ function renderMenu() {
                 <div class="menu-item-price">${fmt(it.price)}</div>
               </div>
             </div>
+            <div class="menu-item-thumb ${!it.image ? 'empty' : ''}"
+                 ${it.image ? `style="background-image:url('${it.image}');"` : ''}
+                 data-icon="${cat.icon}"></div>
           </article>
         `).join('')}
       </div>

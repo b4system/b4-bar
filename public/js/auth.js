@@ -1,4 +1,11 @@
 // ===== B4 Bar — Auth + Navegação Dinâmica =====
+
+// Aplica o tema salvo antes de qualquer render (evita flash)
+(function() {
+  const saved = localStorage.getItem('b4_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
 const Auth = (() => {
   const TOKEN_KEY = 'b4_token';
   const USER_KEY = 'b4_user';
@@ -73,19 +80,52 @@ const Auth = (() => {
       }
     });
 
-    if (user) {
-      links += `<button class="nav-tab nav-user" id="navLogout" title="Sair da conta">
-        <span class="nav-user-avatar">${user.name.charAt(0).toUpperCase()}</span>
-        <span class="nav-user-name">${user.name.split(' ')[0]}</span>
-      </button>`;
-    } else {
+    if (!user) {
       links += `<a href="/login" class="nav-tab ${current === '/login' ? 'active' : ''}">Entrar</a>`;
     }
 
     nav.innerHTML = links;
 
-    const logoutBtn = document.getElementById('navLogout');
-    if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    // Remove controles anteriores
+    const existingControls = document.getElementById('headerControls');
+    if (existingControls) existingControls.remove();
+
+    const controls = document.createElement('div');
+    controls.id = 'headerControls';
+    controls.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;';
+
+    if (user) {
+      const btn = document.createElement('button');
+      btn.className = 'nav-user';
+      btn.id = 'navLogout';
+      btn.title = 'Sair da conta';
+      btn.innerHTML = `
+        <span class="nav-user-avatar">${user.name.charAt(0).toUpperCase()}</span>
+        <span class="nav-user-name">${user.name.split(' ')[0]}</span>
+      `;
+      btn.addEventListener('click', logout);
+      controls.appendChild(btn);
+    }
+
+    const isLight = document.documentElement.getAttribute('data-theme') !== 'dark';
+    const toggle = document.createElement('button');
+    toggle.className = 'theme-toggle';
+    toggle.id = 'themeToggle';
+    toggle.title = isLight ? 'Modo escuro' : 'Modo claro';
+    toggle.innerHTML = isLight ? '🌙' : '☀️';
+    toggle.addEventListener('click', () => {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const next = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('b4_theme', next);
+      toggle.innerHTML = next === 'dark' ? '☀️' : '🌙';
+      toggle.title = next === 'dark' ? 'Modo claro' : 'Modo escuro';
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) metaTheme.content = next === 'dark' ? '#0A0A0C' : '#F6F3EE';
+    });
+    controls.appendChild(toggle);
+
+    nav.parentElement.appendChild(controls);
   }
 
   async function guard(requiredPerm) {

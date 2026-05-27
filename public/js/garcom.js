@@ -137,7 +137,8 @@ function renderCart() {
 
   $('#cartCount').textContent = count;
   $('#cartTotal').textContent = fmt(total);
-  $('#cartTotalMini').textContent = fmt(total);
+  const miniTotal = $('#cartTotalMini');
+  if (miniTotal) miniTotal.textContent = fmt(total);
 
   if (state.cart.length === 0) {
     wrap.innerHTML = `

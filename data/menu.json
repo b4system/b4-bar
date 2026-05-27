@@ -1,0 +1,317 @@
+{
+  "categories": [
+    {
+      "id": "chopps",
+      "name": "Chopps & Cervejas",
+      "icon": "🍺",
+      "items": [
+        {
+          "id": "ch01",
+          "name": "Chopp Pilsen",
+          "description": "300ml gelado, cremoso na medida",
+          "price": 9.9
+        },
+        {
+          "id": "ch02",
+          "name": "Chopp Pilsen",
+          "description": "500ml gelado, cremoso na medida",
+          "price": 14.9
+        },
+        {
+          "id": "ch03",
+          "name": "Chopp Escuro",
+          "description": "300ml, malte tostado e encorpado",
+          "price": 11.9
+        },
+        {
+          "id": "ch04",
+          "name": "Chopp IPA Artesanal",
+          "description": "Aroma cítrico e amargor pronunciado",
+          "price": 16.9
+        },
+        {
+          "id": "ch05",
+          "name": "Long Neck Heineken",
+          "description": "330ml",
+          "price": 12
+        },
+        {
+          "id": "ch06",
+          "name": "Long Neck Corona",
+          "description": "330ml",
+          "price": 13
+        },
+        {
+          "id": "ch07",
+          "name": "Long Neck Stella Artois",
+          "description": "330ml",
+          "price": 11
+        },
+        {
+          "id": "ch08",
+          "name": "Long Neck Budweiser",
+          "description": "330ml",
+          "price": 10
+        }
+      ]
+    },
+    {
+      "id": "drinks",
+      "name": "Drinks & Coquetéis",
+      "icon": "🍹",
+      "items": [
+        {
+          "id": "dr01",
+          "name": "Caipirinha Tradicional",
+          "description": "Cachaça artesanal, limão tahiti e açúcar",
+          "price": 18.9
+        },
+        {
+          "id": "dr02",
+          "name": "Caipiroska de Frutas Vermelhas",
+          "description": "Vodka, morango, framboesa e amora",
+          "price": 22.9
+        },
+        {
+          "id": "dr03",
+          "name": "Mojito Cubano",
+          "description": "Rum branco, hortelã fresca, limão e soda",
+          "price": 24.9
+        },
+        {
+          "id": "dr04",
+          "name": "Aperol Spritz",
+          "description": "Aperol, prosecco, soda e laranja",
+          "price": 28.9
+        },
+        {
+          "id": "dr05",
+          "name": "Gin Tônica B4",
+          "description": "Gin London Dry, tônica e zest de limão siciliano",
+          "price": 32.9
+        },
+        {
+          "id": "dr06",
+          "name": "Negroni",
+          "description": "Gin, campari e vermute rosso",
+          "price": 29.9
+        },
+        {
+          "id": "dr07",
+          "name": "Margarita",
+          "description": "Tequila, triple sec e limão",
+          "price": 26.9
+        },
+        {
+          "id": "dr08",
+          "name": "Whisky Sour",
+          "description": "Bourbon, limão, açúcar e clara de ovo",
+          "price": 27.9
+        }
+      ]
+    },
+    {
+      "id": "petiscos",
+      "name": "Petiscos & Porções",
+      "icon": "🍢",
+      "items": [
+        {
+          "id": "pe01",
+          "name": "Batata Frita Rústica",
+          "description": "Porção generosa com alecrim e flor de sal",
+          "price": 32.9
+        },
+        {
+          "id": "pe02",
+          "name": "Batata com Cheddar e Bacon",
+          "description": "Crocante, coberta com molho cheddar e bacon",
+          "price": 42.9
+        },
+        {
+          "id": "pe03",
+          "name": "Isca de Tilápia",
+          "description": "300g com molho tártaro caseiro e limão",
+          "price": 49.9
+        },
+        {
+          "id": "pe04",
+          "name": "Frango à Passarinho",
+          "description": "500g, temperado, com alho frito",
+          "price": 44.9
+        },
+        {
+          "id": "pe05",
+          "name": "Calabresa Acebolada",
+          "description": "Linguiça artesanal com cebola caramelizada",
+          "price": 36.9
+        },
+        {
+          "id": "pe06",
+          "name": "Anéis de Cebola Empanados",
+          "description": "Crocantes, com molho barbecue",
+          "price": 28.9
+        },
+        {
+          "id": "pe07",
+          "name": "Bolinho de Bacalhau (8 un)",
+          "description": "Receita portuguesa, crocante por fora, macio por dentro",
+          "price": 39.9
+        },
+        {
+          "id": "pe08",
+          "name": "Picanha na Chapa",
+          "description": "400g em cubos, vinagrete e pão de alho",
+          "price": 89.9
+        }
+      ]
+    },
+    {
+      "id": "hamburgueres",
+      "name": "Hambúrgueres",
+      "icon": "🍔",
+      "items": [
+        {
+          "id": "hb01",
+          "name": "B4 Burger Clássico",
+          "description": "180g blend bovino, queijo prato, alface, tomate e maionese da casa",
+          "price": 34.9
+        },
+        {
+          "id": "hb02",
+          "name": "Cheddar Bacon",
+          "description": "180g, cheddar inglês, bacon crocante, cebola caramelizada",
+          "price": 39.9
+        },
+        {
+          "id": "hb03",
+          "name": "Smash Duplo",
+          "description": "Dois discos 90g, queijo derretido, picles e molho especial",
+          "price": 42.9
+        },
+        {
+          "id": "hb04",
+          "name": "Frango Crispy",
+          "description": "Filé empanado, mussarela, alface e molho ranch",
+          "price": 32.9
+        },
+        {
+          "id": "hb05",
+          "name": "Veggie",
+          "description": "Hambúrguer de grão-de-bico, rúcula e tomate seco",
+          "price": 31.9
+        }
+      ]
+    },
+    {
+      "id": "vinhos",
+      "name": "Vinhos & Espumantes",
+      "icon": "🍷",
+      "items": [
+        {
+          "id": "vi01",
+          "name": "Taça de Vinho Tinto",
+          "description": "Malbec argentino, encorpado",
+          "price": 22
+        },
+        {
+          "id": "vi02",
+          "name": "Taça de Vinho Branco",
+          "description": "Sauvignon Blanc chileno",
+          "price": 22
+        },
+        {
+          "id": "vi03",
+          "name": "Garrafa Malbec",
+          "description": "750ml, safra selecionada",
+          "price": 119
+        },
+        {
+          "id": "vi04",
+          "name": "Taça Espumante Brut",
+          "description": "Nacional, brut",
+          "price": 24
+        },
+        {
+          "id": "vi05",
+          "name": "Garrafa Prosecco",
+          "description": "750ml italiano",
+          "price": 139
+        }
+      ]
+    },
+    {
+      "id": "naoalcoolicos",
+      "name": "Sem Álcool",
+      "icon": "🥤",
+      "items": [
+        {
+          "id": "na01",
+          "name": "Refrigerante Lata",
+          "description": "Coca-Cola, Guaraná, Sprite",
+          "price": 7
+        },
+        {
+          "id": "na02",
+          "name": "Água Mineral",
+          "description": "Com ou sem gás",
+          "price": 5
+        },
+        {
+          "id": "na03",
+          "name": "Suco Natural",
+          "description": "Laranja, abacaxi, maracujá, limão",
+          "price": 12
+        },
+        {
+          "id": "na04",
+          "name": "Limonada Suíça",
+          "description": "Limão, açúcar e leite condensado",
+          "price": 14
+        },
+        {
+          "id": "na05",
+          "name": "Energético",
+          "description": "Red Bull 250ml",
+          "price": 14
+        },
+        {
+          "id": "na06",
+          "name": "Mocktail Tropical",
+          "description": "Sem álcool, abacaxi, hortelã e gengibre",
+          "price": 16
+        }
+      ]
+    },
+    {
+      "id": "sobremesas",
+      "name": "Sobremesas",
+      "icon": "🍰",
+      "items": [
+        {
+          "id": "so01",
+          "name": "Petit Gateau",
+          "description": "Bolinho quente de chocolate com sorvete de creme",
+          "price": 26.9
+        },
+        {
+          "id": "so02",
+          "name": "Cheesecake de Frutas Vermelhas",
+          "description": "Fatia com calda de berries",
+          "price": 24.9
+        },
+        {
+          "id": "so03",
+          "name": "Pudim de Leite",
+          "description": "Receita da casa, com calda de caramelo",
+          "price": 18.9
+        },
+        {
+          "id": "so04",
+          "name": "Brownie com Sorvete",
+          "description": "Brownie morno, sorvete de baunilha e calda quente",
+          "price": 22.9
+        }
+      ]
+    }
+  ]
+}

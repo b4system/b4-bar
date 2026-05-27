@@ -1,0 +1,24 @@
+{
+  "name": "b4-bar",
+  "version": "1.0.0",
+  "description": "B4 Bar - Sistema de cardápio digital e gestão de pedidos para bares",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "bar",
+    "cardapio",
+    "pedidos",
+    "garcom",
+    "restaurante"
+  ],
+  "author": "B4 System",
+  "license": "MIT",
+  "dependencies": {
+    "b4-bar": "file:",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

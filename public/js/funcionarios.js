@@ -12,6 +12,7 @@ const ROLE_LABELS = {
 
 const PERM_LABELS = {
   cardapio: 'Cardápio',
+  dashboard: 'Dashboard',
   garcom: 'Garçom',
   pedidos: 'Pedidos',
   produtos: 'Produtos',

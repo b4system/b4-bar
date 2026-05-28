@@ -33,11 +33,22 @@ if (!fs.existsSync(STAFF_FILE)) {
       username: 'admin',
       password: bcrypt.hashSync('admin123', BCRYPT_ROUNDS),
       role: 'admin',
-      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios'],
+      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios', 'dashboard'],
       active: true,
       createdAt: Date.now(),
     }
   ]);
+} else {
+  // Migração: adiciona permissão 'dashboard' ao admin se não tiver
+  const staff = readJSON(STAFF_FILE);
+  let changed = false;
+  staff.forEach(s => {
+    if (s.id === 'admin' && !s.permissions.includes('dashboard')) {
+      s.permissions.push('dashboard');
+      changed = true;
+    }
+  });
+  if (changed) writeJSON(STAFF_FILE, staff);
 }
 
 // Sessões em memória (token → { staffId, createdAt })
@@ -97,6 +108,7 @@ app.get('/garcom', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'g
 app.get('/pedidos', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'pedidos.html')));
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/funcionarios', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'funcionarios.html')));
+app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 
 // ===== API: AUTENTICAÇÃO =====
 app.post('/api/auth/login', async (req, res) => {
@@ -285,6 +297,112 @@ app.delete('/api/admin/items/:id', (req, res) => {
   writeJSON(MENU_FILE, menu);
   if (removedImage && removedImage.startsWith('/uploads/')) fs.unlink(path.join(__dirname, 'public', removedImage), () => {});
   res.json({ ok: true });
+});
+
+// ===== API: DASHBOARD =====
+app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
+  const orders = readJSON(ORDERS_FILE);
+  const menu = readJSON(MENU_FILE);
+
+  // Período: hoje | 7d | 30d | custom (from/to em ms)
+  const range = req.query.range || 'today';
+  const now = new Date();
+  let dateFrom, dateTo;
+
+  if (req.query.from && req.query.to) {
+    dateFrom = parseInt(req.query.from);
+    dateTo = parseInt(req.query.to);
+  } else if (range === '7d') {
+    dateTo = now.getTime();
+    dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6).getTime();
+  } else if (range === '30d') {
+    dateTo = now.getTime();
+    dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29).getTime();
+  } else {
+    // today
+    dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+  }
+
+  const filtered = orders.filter(o => o.createdAt >= dateFrom && o.createdAt <= dateTo);
+  const validOrders = filtered.filter(o => o.status !== 'cancelado');
+
+  const revenue = validOrders.reduce((s, o) => s + o.total, 0);
+  const orderCount = validOrders.length;
+  const itemCount = validOrders.reduce((s, o) => s + o.items.reduce((sum, i) => sum + i.qty, 0), 0);
+  const avgTicket = orderCount > 0 ? revenue / orderCount : 0;
+
+  // Vendas por hora (apenas para "today")
+  const hourly = Array.from({ length: 24 }, (_, i) => ({ label: i.toString().padStart(2, '0') + 'h', revenue: 0, count: 0 }));
+  // Vendas por dia (para 7d / 30d)
+  const daysSpan = Math.ceil((dateTo - dateFrom) / (24 * 3600 * 1000));
+  const daily = [];
+  for (let i = 0; i < daysSpan; i++) {
+    const d = new Date(dateFrom);
+    d.setDate(d.getDate() + i);
+    daily.push({ label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), revenue: 0, count: 0, ts: d.getTime() });
+  }
+
+  validOrders.forEach(o => {
+    const d = new Date(o.createdAt);
+    if (range === 'today') {
+      hourly[d.getHours()].revenue += o.total;
+      hourly[d.getHours()].count += 1;
+    } else {
+      const dayKey = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const bucket = daily.find(b => b.ts === dayKey);
+      if (bucket) { bucket.revenue += o.total; bucket.count += 1; }
+    }
+  });
+
+  // Top items
+  const itemMap = {};
+  validOrders.forEach(o => {
+    o.items.forEach(i => {
+      if (!itemMap[i.name]) itemMap[i.name] = { name: i.name, qty: 0, revenue: 0 };
+      itemMap[i.name].qty += i.qty;
+      itemMap[i.name].revenue += i.price * i.qty;
+    });
+  });
+  const topItems = Object.values(itemMap).sort((a, b) => b.qty - a.qty).slice(0, 10);
+
+  // Por categoria
+  const categoryMap = {};
+  validOrders.forEach(o => {
+    o.items.forEach(i => {
+      let catName = 'Outros';
+      for (const cat of menu.categories) {
+        if (cat.items.find(mi => mi.id === i.id)) { catName = cat.name; break; }
+      }
+      if (!categoryMap[catName]) categoryMap[catName] = { name: catName, revenue: 0, qty: 0 };
+      categoryMap[catName].revenue += i.price * i.qty;
+      categoryMap[catName].qty += i.qty;
+    });
+  });
+  const byCategory = Object.values(categoryMap).sort((a, b) => b.revenue - a.revenue);
+
+  // Status counts (todos os pedidos do período, incluindo cancelados)
+  const statusCounts = { pendente: 0, preparando: 0, pronto: 0, entregue: 0, cancelado: 0 };
+  filtered.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
+
+  // Top garçons
+  const waiterMap = {};
+  validOrders.forEach(o => {
+    const w = o.waiter || 'Sem nome';
+    if (!waiterMap[w]) waiterMap[w] = { name: w, orders: 0, revenue: 0 };
+    waiterMap[w].orders += 1;
+    waiterMap[w].revenue += o.total;
+  });
+  const topWaiters = Object.values(waiterMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+  res.json({
+    range,
+    period: { from: dateFrom, to: dateTo },
+    revenue, orderCount, itemCount, avgTicket,
+    hourly: range === 'today' ? hourly : null,
+    daily: range !== 'today' ? daily : null,
+    topItems, byCategory, statusCounts, topWaiters,
+  });
 });
 
 // ===== API: PEDIDOS =====

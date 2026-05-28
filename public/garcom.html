@@ -7,7 +7,7 @@
   <title>B4 Bar — Garçom</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
   <script>const _t=localStorage.getItem('b4_theme')||'light';document.documentElement.setAttribute('data-theme',_t);</script>
 </head>
@@ -59,27 +59,19 @@
           </div>
         </div>
         <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
-          <div class="table-input-row">
-            <div class="field">
-              <label for="tableNumber">Mesa</label>
-              <input id="tableNumber" type="text" inputmode="numeric" placeholder="Ex: 12" />
-            </div>
-            <div class="field">
-              <label for="waiterName">Garçom</label>
-              <input id="waiterName" type="text" placeholder="Seu nome" />
-            </div>
+          <div class="field">
+            <label for="tableNumber">Mesa</label>
+            <input id="tableNumber" type="text" inputmode="numeric" placeholder="Ex: 12" />
           </div>
+        </div>
+        <div id="cartItems" class="cart-items"></div>
+        <div class="panel-body" style="padding-top:0;">
           <div class="field">
             <label for="notes">Observações (opcional)</label>
             <textarea id="notes" placeholder="Ex: sem gelo, sem cebola, ponto da carne..."></textarea>
           </div>
         </div>
-        <div id="cartItems" class="cart-items"></div>
         <div class="cart-footer">
-          <div class="cart-total">
-            <div class="cart-total-label">Total</div>
-            <div class="cart-total-value" id="cartTotal">R$ 0,00</div>
-          </div>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-ghost" id="clearCart" style="flex:0 0 auto;width:auto;padding:14px 16px;">Limpar</button>
             <button class="btn btn-primary" id="submitOrder" disabled>

@@ -15,7 +15,6 @@ function saveDraft() {
   const draft = {
     cart: state.cart,
     table: $('#tableNumber').value,
-    waiter: $('#waiterName').value,
     notes: $('#notes').value,
   };
   localStorage.setItem('b4-draft', JSON.stringify(draft));
@@ -28,7 +27,6 @@ function loadDraft() {
     const d = JSON.parse(raw);
     state.cart = d.cart || [];
     if (d.table) $('#tableNumber').value = d.table;
-    if (d.waiter) $('#waiterName').value = d.waiter;
     if (d.notes) $('#notes').value = d.notes;
   } catch {}
 }
@@ -133,12 +131,8 @@ function renderCart() {
   const wrap = $('#cartItems');
   const submitBtn = $('#submitOrder');
   const count = state.cart.reduce((s, i) => s + i.qty, 0);
-  const total = state.cart.reduce((s, i) => s + i.price * i.qty, 0);
 
   $('#cartCount').textContent = count;
-  $('#cartTotal').textContent = fmt(total);
-  const miniTotal = $('#cartTotalMini');
-  if (miniTotal) miniTotal.textContent = fmt(total);
 
   if (state.cart.length === 0) {
     wrap.innerHTML = `
@@ -153,7 +147,6 @@ function renderCart() {
       <div class="cart-item">
         <div class="cart-item-info">
           <div class="cart-item-name">${it.name}</div>
-          <div class="cart-item-price">${fmt(it.price)} · ${fmt(it.price * it.qty)}</div>
         </div>
         <div class="qty-control">
           <button class="qty-btn" data-action="dec" data-id="${it.id}" aria-label="Diminuir">−</button>
@@ -178,8 +171,9 @@ function renderCart() {
 // ====== Enviar pedido ======
 async function submitOrder() {
   const table = $('#tableNumber').value.trim();
-  const waiter = $('#waiterName').value.trim();
   const notes = $('#notes').value.trim();
+  const user = Auth.getUser();
+  const waiter = (user && user.name) || 'Garçom';
   if (!table) {
     toast('Informe o número da mesa', 'error');
     $('#tableNumber').focus();
@@ -198,7 +192,7 @@ async function submitOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         table,
-        waiter: waiter || 'Garçom',
+        waiter,
         items: state.cart.map(c => ({ id: c.id, name: c.name, price: c.price, qty: c.qty })),
         notes,
       }),
@@ -255,7 +249,7 @@ $('#waiterSearch').addEventListener('input', (e) => {
 
 $('#submitOrder').addEventListener('click', submitOrder);
 $('#clearCart').addEventListener('click', clearCart);
-['tableNumber', 'waiterName', 'notes'].forEach(id => {
+['tableNumber', 'notes'].forEach(id => {
   $(`#${id}`).addEventListener('input', saveDraft);
 });
 

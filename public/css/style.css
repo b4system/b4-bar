@@ -1990,6 +1990,273 @@ a { color: inherit; text-decoration: none; }
   .addons-add-row input { padding: 9px 10px; font-size: 13.5px; }
 }
 
+/* ====== FORM ROW 3 COLUNAS ====== */
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .form-row-3 { grid-template-columns: 1fr 1fr; }
+  .form-row-3 .field:last-child { grid-column: 1 / -1; }
+}
+
+/* ====== CHECKLIST POR ITEM (pedidos) ====== */
+.order-line {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 4px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.item-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--bg-2);
+  border: 2px solid var(--border-strong);
+  color: var(--success);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 2px;
+  padding: 0;
+}
+
+.item-check:hover { border-color: var(--success); background: var(--success-soft); }
+.item-check.checked {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.order-line-done .order-line-name { text-decoration: line-through; opacity: 0.6; }
+.order-line-done .order-line-price { opacity: 0.55; }
+.order-line-done { background: var(--success-soft); }
+
+.order-line-late { background: var(--danger-soft); animation: pulse-late 2s ease-in-out infinite; }
+
+@keyframes pulse-late {
+  0%, 100% { background: var(--danger-soft); }
+  50% { background: rgba(224, 62, 62, 0.18); }
+}
+
+.order-line-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.order-line-price {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Badges de tempo no item */
+.item-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.item-badge-time {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.item-badge-late {
+  background: var(--danger);
+  color: #fff;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.item-badge-ready {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* Progresso do pedido */
+.order-progress {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order-progress-text {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.order-progress-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--bg-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.order-progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Card com pedido atrasado */
+.order-card-late {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px var(--danger-soft);
+}
+
+.order-late-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 3px 9px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-top: 4px;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+.order-expected {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--info);
+  background: var(--info-soft);
+  padding: 3px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+
+.order-expected.late {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* ====== DASHBOARD — PEDIDOS ATRASADOS ====== */
+.late-title {
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.late-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 9px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 999px;
+  letter-spacing: 0;
+}
+
+.late-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.late-card {
+  display: block;
+  padding: 14px;
+  background: var(--bg-1);
+  border: 1.5px solid var(--danger);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-0);
+  transition: all 0.15s;
+}
+
+.late-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+.late-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.late-card-table {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-0);
+  letter-spacing: -0.2px;
+}
+
+.late-card-num {
+  font-size: 11.5px;
+  color: var(--text-2);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.late-card-time {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--danger);
+  background: var(--danger-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.late-card-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.late-item {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  background: var(--bg-2);
+  border-radius: 5px;
+  color: var(--text-1);
+  font-weight: 600;
+}
+
 /* ====== LOGIN ====== */
 .login-card {
   width: 100%;

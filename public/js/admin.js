@@ -170,6 +170,7 @@ function openProductModal(itemId, preselectedCat) {
     $('#itemName').value = found.name;
     $('#itemDesc').value = found.description || '';
     $('#itemPrice').value = found.price;
+    $('#itemPrepTime').value = found.prepTime || 0;
     $('#itemCategory').value = foundCat.id;
     $('#itemObservable').checked = !!found.observable;
     $('#saveItem').textContent = 'Salvar alterações';
@@ -178,6 +179,7 @@ function openProductModal(itemId, preselectedCat) {
     $('#itemName').value = '';
     $('#itemDesc').value = '';
     $('#itemPrice').value = '';
+    $('#itemPrepTime').value = '';
     $('#itemObservable').checked = false;
     $('#saveItem').textContent = 'Cadastrar produto';
     if (preselectedCat) $('#itemCategory').value = preselectedCat;
@@ -242,7 +244,8 @@ async function saveItem() {
   if (!categoryId) return toast('Selecione uma categoria', 'error');
 
   const observable = $('#itemObservable').checked;
-  const payload = { name, description, price, image: state.imageUrl, categoryId, observable, addons: state.addons };
+  const prepTime = parseInt($('#itemPrepTime').value) || 0;
+  const payload = { name, description, price, image: state.imageUrl, categoryId, observable, addons: state.addons, prepTime };
   const btn = $('#saveItem');
   btn.disabled = true;
   const orig = btn.textContent;

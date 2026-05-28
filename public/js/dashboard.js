@@ -68,10 +68,36 @@ function render() {
   $('#kpiItems').textContent = fmtInt(d.itemCount);
 
   renderStatus(d.statusCounts);
+  renderLateOrders(d.lateOrders || []);
   renderChartTime(d);
   renderChartCategory(d.byCategory);
   renderTopItems(d.topItems);
   renderTopWaiters(d.topWaiters);
+}
+
+function renderLateOrders(list) {
+  const section = $('#lateSection');
+  const wrap = $('#lateList');
+  if (!list || list.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  $('#lateCount').textContent = list.length;
+  wrap.innerHTML = list.map(o => `
+    <a href="/pedidos" class="late-card">
+      <div class="late-card-head">
+        <div>
+          <div class="late-card-table">Mesa ${o.table}</div>
+          <div class="late-card-num">#${o.number.toString().padStart(4, '0')} · ${o.waiter}</div>
+        </div>
+        <div class="late-card-time">⚠ ${o.lateMinutes} min</div>
+      </div>
+      <div class="late-card-items">
+        ${o.lateItems.map(i => `<span class="late-item">${i.qty}× ${i.name}</span>`).join('')}
+      </div>
+    </a>
+  `).join('');
 }
 
 function renderStatus(counts) {

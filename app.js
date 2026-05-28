@@ -261,7 +261,7 @@ function sanitizeAddons(arr) {
 }
 
 app.post('/api/admin/items', (req, res) => {
-  const { categoryId, name, description, price, image, observable, addons } = req.body;
+  const { categoryId, name, description, price, image, observable, addons, prepTime } = req.body;
   if (!categoryId || !name || price == null) {
     return res.status(400).json({ error: 'categoryId, name e price são obrigatórios' });
   }
@@ -276,6 +276,7 @@ app.post('/api/admin/items', (req, res) => {
     image: image || '',
     observable: !!observable,
     addons: sanitizeAddons(addons),
+    prepTime: Math.max(0, parseInt(prepTime) || 0),
   };
   cat.items.push(item);
   writeJSON(MENU_FILE, menu);
@@ -290,13 +291,14 @@ app.patch('/api/admin/items/:id', (req, res) => {
     if (it) { found = it; foundCat = cat; break; }
   }
   if (!found) return res.status(404).json({ error: 'Item não encontrado' });
-  const { name, description, price, image, categoryId, observable, addons } = req.body;
+  const { name, description, price, image, categoryId, observable, addons, prepTime } = req.body;
   if (name !== undefined) found.name = name;
   if (description !== undefined) found.description = description;
   if (price !== undefined) found.price = parseFloat(price);
   if (image !== undefined) found.image = image;
   if (observable !== undefined) found.observable = !!observable;
   if (addons !== undefined) found.addons = sanitizeAddons(addons);
+  if (prepTime !== undefined) found.prepTime = Math.max(0, parseInt(prepTime) || 0);
   if (categoryId && categoryId !== foundCat.id) {
     const newCat = menu.categories.find(c => c.id === categoryId);
     if (!newCat) return res.status(404).json({ error: 'Categoria de destino inválida' });
@@ -416,6 +418,30 @@ app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
   });
   const topWaiters = Object.values(waiterMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
+  // ===== Pedidos atrasados (em preparando há mais tempo que o esperado) =====
+  const nowMs = Date.now();
+  const lateOrders = [];
+  orders.forEach(o => {
+    if (o.status !== 'preparando' || !o.preparingAt) return;
+    if (!Array.isArray(o.items) || o.items.length === 0) return;
+    // Item atrasado: não está pronto E (preparingAt + prepTime) < now
+    const lateItems = o.items.filter(i =>
+      !i.ready && i.prepTime > 0 && (o.preparingAt + i.prepTime * 60000) < nowMs
+    );
+    if (lateItems.length === 0) return;
+    // Maior atraso entre os itens
+    const maxLateMs = Math.max(...lateItems.map(i =>
+      nowMs - (o.preparingAt + i.prepTime * 60000)
+    ));
+    lateOrders.push({
+      id: o.id, number: o.number, table: o.table, waiter: o.waiter,
+      preparingAt: o.preparingAt,
+      lateMinutes: Math.floor(maxLateMs / 60000),
+      lateItems: lateItems.map(i => ({ name: i.name, qty: i.qty, prepTime: i.prepTime })),
+    });
+  });
+  lateOrders.sort((a, b) => b.lateMinutes - a.lateMinutes);
+
   res.json({
     range,
     period: { from: dateFrom, to: dateTo },
@@ -423,6 +449,7 @@ app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
     hourly: range === 'today' ? hourly : null,
     daily: range !== 'today' ? daily : null,
     topItems, byCategory, statusCounts, topWaiters,
+    lateOrders,
   });
 });
 
@@ -440,9 +467,27 @@ app.post('/api/orders', (req, res) => {
   }
   const orders = readJSON(ORDERS_FILE);
   const total = items.reduce((sum, it) => sum + (it.price * it.qty), 0);
+
+  // Garante prepTime e estado de cada item; busca no menu se não vier no payload
+  const menu = readJSON(MENU_FILE);
+  const findPrepTime = (id) => {
+    for (const cat of menu.categories) {
+      const it = cat.items.find(i => i.id === id);
+      if (it) return parseInt(it.prepTime) || 0;
+    }
+    return 0;
+  };
+  const enrichedItems = items.map(it => ({
+    ...it,
+    prepTime: it.prepTime != null ? parseInt(it.prepTime) || 0 : findPrepTime(it.id),
+    ready: false,
+    readyAt: null,
+  }));
+
   const order = {
     id: genId(), number: orders.length + 1, table, waiter: waiter || 'Garçom',
-    items, notes: notes || '', total, status: 'pendente', createdAt: Date.now()
+    items: enrichedItems, notes: notes || '', total,
+    status: 'pendente', createdAt: Date.now(), preparingAt: null,
   };
   orders.push(order);
   writeJSON(ORDERS_FILE, orders);
@@ -458,8 +503,26 @@ app.patch('/api/orders/:id', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'Pedido não encontrado' });
   orders[idx].status = status;
   orders[idx].updatedAt = Date.now();
+  if (status === 'preparando' && !orders[idx].preparingAt) {
+    orders[idx].preparingAt = Date.now();
+  }
   writeJSON(ORDERS_FILE, orders);
   res.json(orders[idx]);
+});
+
+// Marca/desmarca item individual como pronto
+app.patch('/api/orders/:id/items/:idx', (req, res) => {
+  const { ready } = req.body;
+  const orders = readJSON(ORDERS_FILE);
+  const order = orders.find(o => o.id === req.params.id);
+  if (!order) return res.status(404).json({ error: 'Pedido não encontrado' });
+  const itemIdx = parseInt(req.params.idx);
+  if (!order.items[itemIdx]) return res.status(404).json({ error: 'Item não encontrado' });
+  order.items[itemIdx].ready = !!ready;
+  order.items[itemIdx].readyAt = ready ? Date.now() : null;
+  order.updatedAt = Date.now();
+  writeJSON(ORDERS_FILE, orders);
+  res.json(order);
 });
 
 app.delete('/api/orders/:id', (req, res) => {

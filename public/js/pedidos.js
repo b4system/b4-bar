@@ -65,30 +65,113 @@ function render() {
   wrap.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', () => deleteOrder(btn.dataset.id));
   });
+  wrap.querySelectorAll('[data-action="toggle-item"]').forEach(btn => {
+    btn.addEventListener('click', () => toggleItem(btn.dataset.id, parseInt(btn.dataset.idx)));
+  });
+}
+
+async function toggleItem(orderId, itemIdx) {
+  const order = state.orders.find(o => o.id === orderId);
+  if (!order || !order.items[itemIdx]) return;
+  const newReady = !order.items[itemIdx].ready;
+  // Atualiza local imediatamente para UX rápida
+  order.items[itemIdx].ready = newReady;
+  order.items[itemIdx].readyAt = newReady ? Date.now() : null;
+  render();
+  try {
+    const res = await fetch(`/api/orders/${orderId}/items/${itemIdx}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ready: newReady }),
+    });
+    if (!res.ok) throw new Error();
+    // Recarrega para sincronizar
+    fetchOrders();
+  } catch {
+    toast('Falha ao marcar item', 'error');
+    order.items[itemIdx].ready = !newReady;
+    render();
+  }
+}
+
+function itemStatusBadge(o, i) {
+  if (i.ready) {
+    return `<span class="item-badge item-badge-ready">✓ Pronto</span>`;
+  }
+  if (o.status !== 'preparando' || !o.preparingAt || !i.prepTime) {
+    return i.prepTime ? `<span class="item-badge item-badge-time">⏱ ${i.prepTime} min</span>` : '';
+  }
+  const elapsedMs = Date.now() - o.preparingAt;
+  const totalMs = i.prepTime * 60000;
+  const remainMs = totalMs - elapsedMs;
+  if (remainMs > 0) {
+    const minLeft = Math.ceil(remainMs / 60000);
+    return `<span class="item-badge item-badge-time">⏱ ${minLeft} min</span>`;
+  }
+  const lateMin = Math.ceil(-remainMs / 60000);
+  return `<span class="item-badge item-badge-late">⚠ ${lateMin} min atrás</span>`;
+}
+
+function expectedReadyAt(o) {
+  if (o.status !== 'preparando' || !o.preparingAt) return null;
+  const items = Array.isArray(o.items) ? o.items : [];
+  if (items.length === 0) return null;
+  const maxPrep = Math.max(0, ...items.map(i => parseInt(i.prepTime) || 0));
+  if (maxPrep === 0) return null;
+  return o.preparingAt + maxPrep * 60000;
+}
+
+function formatClock(ts) {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 function renderOrder(o) {
   const next = NEXT_STATUS[o.status];
-  const itemsHtml = o.items.map(i => {
+  const canCheck = o.status === 'preparando' || o.status === 'pendente';
+  const items = Array.isArray(o.items) ? o.items : [];
+  const readyCount = items.filter(i => i.ready).length;
+  const hasLate = o.status === 'preparando' && o.preparingAt && items.some(i =>
+    !i.ready && i.prepTime > 0 && (o.preparingAt + i.prepTime * 60000) < Date.now()
+  );
+  const expectedTs = expectedReadyAt(o);
+  const isPastExpected = expectedTs && Date.now() > expectedTs;
+
+  const itemsHtml = items.map((i, idx) => {
     const addons = Array.isArray(i.addons) ? i.addons : [];
     const addonsHtml = addons.length > 0
       ? `<div class="order-line-addons">${addons.map(a => `<span class="order-addon">+ ${a.name}</span>`).join('')}</div>`
       : '';
     const noteHtml = i.notes ? `<div class="order-line-note">💬 ${i.notes}</div>` : '';
+    const checkbox = (o.status !== 'cancelado' && o.status !== 'entregue')
+      ? `<button class="item-check ${i.ready ? 'checked' : ''}" data-action="toggle-item" data-id="${o.id}" data-idx="${idx}" aria-label="${i.ready ? 'Desmarcar' : 'Marcar pronto'}">${i.ready ? '✓' : ''}</button>`
+      : `<span class="item-check ${i.ready ? 'checked' : ''}">${i.ready ? '✓' : ''}</span>`;
+    const lineLate = o.status === 'preparando' && o.preparingAt && !i.ready && i.prepTime > 0 && (o.preparingAt + i.prepTime * 60000) < Date.now();
+
     return `
-      <div class="order-line">
+      <div class="order-line ${i.ready ? 'order-line-done' : ''} ${lineLate ? 'order-line-late' : ''}">
+        ${checkbox}
         <div class="order-line-main">
-          <span class="order-line-name"><b>${i.qty}×</b> ${i.name}</span>
+          <div class="order-line-head">
+            <span class="order-line-name"><b>${i.qty}×</b> ${i.name}</span>
+            ${itemStatusBadge(o, i)}
+          </div>
           ${addonsHtml}
           ${noteHtml}
         </div>
-        <span style="color:var(--text-2);">${fmt(i.price * i.qty)}</span>
+        <span class="order-line-price">${fmt(i.price * i.qty)}</span>
       </div>
     `;
   }).join('');
 
+  const progressHtml = items.length > 0 ? `
+    <div class="order-progress">
+      <div class="order-progress-text">${readyCount}/${items.length} pronto${readyCount === 1 ? '' : 's'}</div>
+      <div class="order-progress-bar"><span style="width:${(readyCount / items.length * 100).toFixed(0)}%;"></span></div>
+    </div>
+  ` : '';
+
   return `
-    <article class="order-card">
+    <article class="order-card ${hasLate ? 'order-card-late' : ''}">
       <header class="order-head">
         <div>
           <div class="order-table">Mesa ${o.table}</div>
@@ -96,15 +179,18 @@ function renderOrder(o) {
         </div>
         <div style="text-align:right;">
           <span class="status-badge status-${o.status}">${STATUS_LABEL[o.status]}</span>
+          ${expectedTs ? `<div class="order-expected ${isPastExpected ? 'late' : ''}">⏰ Pronto às ${formatClock(expectedTs)}</div>` : ''}
           <div class="order-time" style="margin-top:6px;">${timeAgo(o.createdAt)}</div>
+          ${hasLate ? '<div class="order-late-badge">⚠ Atrasado</div>' : ''}
         </div>
       </header>
       <div class="order-body">
         <div class="order-meta">
           <span>👤 ${o.waiter}</span>
           <span>•</span>
-          <span>${o.items.length} ${o.items.length === 1 ? 'item' : 'itens'}</span>
+          <span>${items.length} ${items.length === 1 ? 'item' : 'itens'}</span>
         </div>
+        ${progressHtml}
         <div class="order-items-list">${itemsHtml}</div>
         ${o.notes ? `<div class="order-notes">💬 ${o.notes}</div>` : ''}
       </div>
@@ -176,5 +262,9 @@ $('#filters').addEventListener('click', (e) => {
   const user = await Auth.init('pedidos');
   if (!user) return;
   fetchOrders();
-  setInterval(fetchOrders, 5000);
+  setInterval(fetchOrders, 10000); // refresh do servidor
+  setInterval(() => {
+    // Re-renderiza para atualizar contadores de tempo sem refetch
+    if (state.orders.length > 0) render();
+  }, 20000);
 })();

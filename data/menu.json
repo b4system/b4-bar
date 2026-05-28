@@ -193,7 +193,8 @@
               "name": "Queijo cheddar extra",
               "price": 4
             }
-          ]
+          ],
+          "prepTime": 15
         },
         {
           "id": "hb02",

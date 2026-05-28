@@ -174,7 +174,26 @@
           "id": "hb01",
           "name": "B4 Burger Clássico",
           "description": "180g blend bovino, queijo prato, alface, tomate e maionese da casa",
-          "price": 34.9
+          "price": 34.9,
+          "observable": true,
+          "image": "",
+          "addons": [
+            {
+              "id": "amppp0b3coibd",
+              "name": "Bacon extra",
+              "price": 5
+            },
+            {
+              "id": "amppp0b3cj2ao",
+              "name": "Cebola caramelizada",
+              "price": 3.5
+            },
+            {
+              "id": "amppp0b3cmn7j",
+              "name": "Queijo cheddar extra",
+              "price": 4
+            }
+          ]
         },
         {
           "id": "hb02",

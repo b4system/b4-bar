@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#EFEBE0" />
+  <meta name="theme-color" content="#D2C8AC" />
   <title>B4 Bar — Garçom</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,6 +86,37 @@
       </aside>
     </div>
   </main>
+
+  <!-- Modal ao adicionar item: observação + adicionais -->
+  <div class="modal-backdrop" id="obsModal">
+    <div class="modal">
+      <header class="modal-head">
+        <h3 id="obsModalTitle">Adicionar ao pedido</h3>
+        <button class="modal-close" id="closeObsModal" aria-label="Fechar">&times;</button>
+      </header>
+      <div class="modal-scroll">
+        <div class="form-grid">
+          <div class="obs-item-preview" id="obsItemPreview"></div>
+
+          <div class="addons-section" id="obsAddonsSection" style="display:none;">
+            <div class="addons-title">Adicionais</div>
+            <div id="obsAddonsList"></div>
+          </div>
+
+          <div class="field" id="obsTextField">
+            <label for="obsText">Observação <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-2);">(opcional)</span></label>
+            <textarea id="obsText" rows="2" placeholder="Ex: sem cebola, ponto da carne, sem maionese..."></textarea>
+          </div>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn-ghost" id="obsCancel">Cancelar</button>
+        <button class="btn btn-primary" id="obsAdd">
+          Adicionar <span id="obsAddPrice" class="obs-add-price"></span>
+        </button>
+      </footer>
+    </div>
+  </div>
 
   <div class="toast-container" id="toasts"></div>
 

@@ -1,17 +1,17 @@
 /* ====== B4 BAR — Design System v3 ====== */
 :root {
-  /* Light — creme quente, acolhedor (menos branco) */
-  --bg-0: #EFEBE0;
-  --bg-1: #F6F2E6;
-  --bg-2: #E5E0D2;
-  --bg-3: #D6D0C0;
-  --bg-elev: #F9F5EA;
-  --border: #D8D3C4;
-  --border-strong: #BFB9A8;
-  --text-0: #1A1814;
-  --text-1: #3A352E;
-  --text-2: #756F62;
-  --text-3: #A8A294;
+  /* Light — sand/wheat com depth (bar acolhedor, sem branco) */
+  --bg-0: #D2C8AC;
+  --bg-1: #ECE4CC;
+  --bg-2: #BCB294;
+  --bg-3: #998E72;
+  --bg-elev: #F1EAD3;
+  --border: #B0A488;
+  --border-strong: #897E62;
+  --text-0: #1F1B11;
+  --text-1: #423B28;
+  --text-2: #6E6649;
+  --text-3: #9C9277;
   --accent: #F5A524;
   --accent-2: #FFB84D;
   --accent-soft: rgba(245, 165, 36, 0.12);
@@ -106,7 +106,7 @@ a { color: inherit; text-decoration: none; }
   z-index: 50;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(239, 235, 224, 0.90);
+  background: rgba(210, 200, 172, 0.92);
   border-bottom: 1px solid var(--border);
   padding: 10px 20px;
   padding-top: calc(10px + env(safe-area-inset-top));
@@ -1553,6 +1553,441 @@ a { color: inherit; text-decoration: none; }
 
 .nav-drawer-foot .drawer-item {
   grid-template-columns: 32px 1fr;
+}
+
+/* ====== CHECK ROW (admin) ====== */
+.check-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.check-row:hover { border-color: var(--border-strong); }
+.check-row:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+
+.check-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.check-row-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-0);
+  letter-spacing: -0.1px;
+}
+
+.check-row-desc {
+  font-size: 12.5px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ====== TAG DE OBSERVAÇÃO NO ITEM (garçom) ====== */
+.obs-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+
+/* ====== OBS MODAL PREVIEW ====== */
+.obs-item-preview {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.obs-item-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-0);
+  letter-spacing: -0.2px;
+}
+
+.obs-item-price {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--price-color);
+}
+
+/* ====== NOTAS NO ITEM DO CARRINHO ====== */
+.cart-item-notes {
+  font-size: 12px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-radius: 6px;
+  padding: 3px 8px;
+  margin-top: 4px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.cart-item-addons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.cart-addon {
+  font-size: 11.5px;
+  color: var(--success);
+  background: var(--success-soft);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* ====== ADICIONAIS — CADASTRO (admin) ====== */
+.addons-section {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.addons-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.addons-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-0);
+  letter-spacing: -0.1px;
+}
+
+.addons-sub {
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+.addons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.addons-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+}
+
+.addon-row {
+  display: grid;
+  grid-template-columns: 1fr auto 32px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.addon-row-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.addon-row-price {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--price-color);
+  white-space: nowrap;
+}
+
+.addon-row-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.addon-row-remove:hover { background: var(--danger); color: white; }
+
+.addons-add-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 38px;
+  gap: 8px;
+}
+
+.addons-add-row input {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-0);
+  font-size: 14px;
+  font-family: var(--font);
+}
+.addons-add-row input:focus { outline: none; border-color: var(--accent); }
+
+.addons-add-btn {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.addons-add-btn:hover { background: var(--accent-2); }
+
+/* ====== ADICIONAIS — MODAL DO GARÇOM ====== */
+.addon-toggle {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 6px;
+}
+
+.addon-toggle:hover { border-color: var(--border-strong); }
+.addon-toggle:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+
+.addon-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.addon-toggle-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.addon-toggle-price {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--price-color);
+  white-space: nowrap;
+}
+
+.obs-add-price {
+  margin-left: 6px;
+  font-family: var(--font-price);
+  font-style: italic;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+/* ====== CHIPS DE FILTRO: WRAP NO MOBILE ====== */
+@media (max-width: 768px) {
+  .category-tabs,
+  .waiter-categories,
+  .admin-cat-filters {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 6px;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .category-chip,
+  .waiter-cat-chip {
+    flex-shrink: 1;
+    font-size: 12px;
+    padding: 6px 11px;
+  }
+
+  .waiter-categories {
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+  }
+}
+
+/* ====== SCROLLER DE CHIPS COM SETAS (desktop) ====== */
+.chip-scroller-wrap {
+  position: relative;
+  margin: 0 -20px 4px;
+  padding: 0 20px;
+}
+
+.chip-scroller-wrap > nav {
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.chip-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--border-strong);
+  color: var(--text-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, background 0.15s, transform 0.15s;
+  box-shadow: var(--shadow);
+}
+
+.chip-scroll-btn.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.chip-scroll-btn:hover {
+  background: var(--text-0);
+  color: var(--bg-1);
+}
+
+.chip-scroll-btn:active { transform: translateY(-50%) scale(0.92); }
+
+.chip-scroll-left { left: 2px; }
+.chip-scroll-right { right: 2px; }
+
+/* Gradientes de fade nas bordas quando há overflow */
+.chip-scroller-wrap::before,
+.chip-scroller-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 14px;
+  width: 36px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chip-scroller-wrap::before {
+  left: 20px;
+  background: linear-gradient(to right, var(--bg-0), transparent);
+}
+
+.chip-scroller-wrap::after {
+  right: 20px;
+  background: linear-gradient(to left, var(--bg-0), transparent);
+}
+
+.chip-scroller-wrap:has(.chip-scroll-left.visible)::before { opacity: 1; }
+.chip-scroller-wrap:has(.chip-scroll-right.visible)::after { opacity: 1; }
+
+/* No mobile, os botões somem e o wrapper deixa de ser relativo */
+.chip-scroller-wrap.chip-mobile {
+  margin: 0 0 4px;
+  padding: 0;
+}
+.chip-scroller-wrap.chip-mobile .chip-scroll-btn { display: none; }
+.chip-scroller-wrap.chip-mobile::before,
+.chip-scroller-wrap.chip-mobile::after { display: none; }
+
+/* ====== ADICIONAIS — PAINEL DE PEDIDOS ====== */
+.order-line-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.order-line-addons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.order-addon {
+  font-size: 11px;
+  color: var(--success);
+  background: var(--success-soft);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-weight: 600;
+}
+
+.order-line-note {
+  font-size: 12px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-weight: 600;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+@media (max-width: 480px) {
+  .addons-add-row { grid-template-columns: 1fr 80px 36px; gap: 6px; }
+  .addons-add-row input { padding: 9px 10px; font-size: 13.5px; }
 }
 
 /* ====== LOGIN ====== */

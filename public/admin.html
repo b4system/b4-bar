@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#EFEBE0" />
+  <meta name="theme-color" content="#D2C8AC" />
   <title>B4 Bar — Cadastro de Mercadoria</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,6 +85,29 @@
             <div class="field">
               <label for="itemCategory">Categoria</label>
               <select id="itemCategory"></select>
+            </div>
+          </div>
+
+          <label class="check-row" for="itemObservable">
+            <input type="checkbox" id="itemObservable" />
+            <div class="check-row-body">
+              <div class="check-row-title">Permitir observação ao adicionar</div>
+              <div class="check-row-desc">O garçom poderá registrar uma observação (ex: ponto da carne, sem cebola). Útil para pratos e comidas.</div>
+            </div>
+          </label>
+
+          <div class="addons-section">
+            <div class="addons-header">
+              <div>
+                <div class="addons-title">Adicionais</div>
+                <div class="addons-sub">Opcionais que o garçom pode incluir ao pedir este item (ex: bacon extra, cebola caramelizada).</div>
+              </div>
+            </div>
+            <div class="addons-list" id="addonsList"></div>
+            <div class="addons-add-row">
+              <input id="newAddonName" type="text" placeholder="Nome do adicional" />
+              <input id="newAddonPrice" type="number" step="0.01" min="0" placeholder="0,00" inputmode="decimal" />
+              <button type="button" class="addons-add-btn" id="addAddonBtn" aria-label="Adicionar">+</button>
             </div>
           </div>
         </div>

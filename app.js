@@ -249,15 +249,34 @@ app.delete('/api/admin/categories/:id', (req, res) => {
 });
 
 // ===== API: ITENS (CRUD) =====
+function sanitizeAddons(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter(a => a && a.name && a.price != null)
+    .map(a => ({
+      id: a.id || genId('a'),
+      name: String(a.name).trim(),
+      price: parseFloat(a.price) || 0,
+    }));
+}
+
 app.post('/api/admin/items', (req, res) => {
-  const { categoryId, name, description, price, image } = req.body;
+  const { categoryId, name, description, price, image, observable, addons } = req.body;
   if (!categoryId || !name || price == null) {
     return res.status(400).json({ error: 'categoryId, name e price são obrigatórios' });
   }
   const menu = readJSON(MENU_FILE);
   const cat = menu.categories.find(c => c.id === categoryId);
   if (!cat) return res.status(404).json({ error: 'Categoria não encontrada' });
-  const item = { id: genId('i'), name, description: description || '', price: parseFloat(price), image: image || '' };
+  const item = {
+    id: genId('i'),
+    name,
+    description: description || '',
+    price: parseFloat(price),
+    image: image || '',
+    observable: !!observable,
+    addons: sanitizeAddons(addons),
+  };
   cat.items.push(item);
   writeJSON(MENU_FILE, menu);
   res.status(201).json({ ...item, categoryId });
@@ -271,11 +290,13 @@ app.patch('/api/admin/items/:id', (req, res) => {
     if (it) { found = it; foundCat = cat; break; }
   }
   if (!found) return res.status(404).json({ error: 'Item não encontrado' });
-  const { name, description, price, image, categoryId } = req.body;
+  const { name, description, price, image, categoryId, observable, addons } = req.body;
   if (name !== undefined) found.name = name;
   if (description !== undefined) found.description = description;
   if (price !== undefined) found.price = parseFloat(price);
   if (image !== undefined) found.image = image;
+  if (observable !== undefined) found.observable = !!observable;
+  if (addons !== undefined) found.addons = sanitizeAddons(addons);
   if (categoryId && categoryId !== foundCat.id) {
     const newCat = menu.categories.find(c => c.id === categoryId);
     if (!newCat) return res.status(404).json({ error: 'Categoria de destino inválida' });

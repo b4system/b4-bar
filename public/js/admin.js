@@ -13,7 +13,10 @@ const state = {
   imageUrl: '',
   uploading: false,
   categoryEditing: null,
+  addons: [], // adicionais do produto sendo editado
 };
+
+const fmtCurrency = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 // ====== Carrega cardápio ======
 async function loadMenu() {
@@ -151,6 +154,7 @@ function renderList() {
 function openProductModal(itemId, preselectedCat) {
   state.editing = null;
   state.imageUrl = '';
+  state.addons = [];
 
   if (itemId) {
     let found = null, foundCat = null;
@@ -161,25 +165,64 @@ function openProductModal(itemId, preselectedCat) {
     if (!found) return;
     state.editing = { ...found, categoryId: foundCat.id };
     state.imageUrl = found.image || '';
+    state.addons = Array.isArray(found.addons) ? found.addons.map(a => ({ ...a })) : [];
     $('#productModalTitle').textContent = 'Editar produto';
     $('#itemName').value = found.name;
     $('#itemDesc').value = found.description || '';
     $('#itemPrice').value = found.price;
     $('#itemCategory').value = foundCat.id;
+    $('#itemObservable').checked = !!found.observable;
     $('#saveItem').textContent = 'Salvar alterações';
   } else {
     $('#productModalTitle').textContent = 'Novo produto';
     $('#itemName').value = '';
     $('#itemDesc').value = '';
     $('#itemPrice').value = '';
+    $('#itemObservable').checked = false;
     $('#saveItem').textContent = 'Cadastrar produto';
     if (preselectedCat) $('#itemCategory').value = preselectedCat;
     else if (state.filterCategory) $('#itemCategory').value = state.filterCategory;
   }
 
+  renderAddonsList();
+  $('#newAddonName').value = '';
+  $('#newAddonPrice').value = '';
   updateImagePreview(state.imageUrl);
   $('#productModal').classList.add('open');
   setTimeout(() => $('#itemName').focus(), 80);
+}
+
+function renderAddonsList() {
+  const wrap = $('#addonsList');
+  if (state.addons.length === 0) {
+    wrap.innerHTML = '<div class="addons-empty">Nenhum adicional cadastrado</div>';
+    return;
+  }
+  wrap.innerHTML = state.addons.map((a, idx) => `
+    <div class="addon-row" data-idx="${idx}">
+      <div class="addon-row-name">${a.name}</div>
+      <div class="addon-row-price">+${fmtCurrency(a.price)}</div>
+      <button type="button" class="addon-row-remove" data-idx="${idx}" aria-label="Remover">×</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.addon-row-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.addons.splice(parseInt(btn.dataset.idx), 1);
+      renderAddonsList();
+    });
+  });
+}
+
+function addNewAddon() {
+  const name = $('#newAddonName').value.trim();
+  const price = parseFloat($('#newAddonPrice').value);
+  if (!name) return toast('Informe o nome do adicional', 'error');
+  if (isNaN(price) || price < 0) return toast('Informe um preço válido', 'error');
+  state.addons.push({ name, price });
+  $('#newAddonName').value = '';
+  $('#newAddonPrice').value = '';
+  renderAddonsList();
+  $('#newAddonName').focus();
 }
 
 function closeProductModal() {
@@ -198,7 +241,8 @@ async function saveItem() {
   if (isNaN(price) || price < 0) return toast('Informe um preço válido', 'error');
   if (!categoryId) return toast('Selecione uma categoria', 'error');
 
-  const payload = { name, description, price, image: state.imageUrl, categoryId };
+  const observable = $('#itemObservable').checked;
+  const payload = { name, description, price, image: state.imageUrl, categoryId, observable, addons: state.addons };
   const btn = $('#saveItem');
   btn.disabled = true;
   const orig = btn.textContent;
@@ -390,6 +434,9 @@ $('#newProductBtn').addEventListener('click', () => openProductModal());
 $('#newCategoryBtn').addEventListener('click', () => openCategoryModal());
 
 $('#saveItem').addEventListener('click', saveItem);
+$('#addAddonBtn').addEventListener('click', addNewAddon);
+$('#newAddonPrice').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addNewAddon(); } });
+$('#newAddonName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#newAddonPrice').focus(); } });
 $('#cancelProduct').addEventListener('click', closeProductModal);
 $('#closeProductModal').addEventListener('click', closeProductModal);
 $('#productModal').addEventListener('click', (e) => {

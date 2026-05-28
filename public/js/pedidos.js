@@ -69,12 +69,23 @@ function render() {
 
 function renderOrder(o) {
   const next = NEXT_STATUS[o.status];
-  const itemsHtml = o.items.map(i => `
-    <div class="order-line">
-      <span class="order-line-name"><b>${i.qty}×</b> ${i.name}</span>
-      <span style="color:var(--text-2);">${fmt(i.price * i.qty)}</span>
-    </div>
-  `).join('');
+  const itemsHtml = o.items.map(i => {
+    const addons = Array.isArray(i.addons) ? i.addons : [];
+    const addonsHtml = addons.length > 0
+      ? `<div class="order-line-addons">${addons.map(a => `<span class="order-addon">+ ${a.name}</span>`).join('')}</div>`
+      : '';
+    const noteHtml = i.notes ? `<div class="order-line-note">💬 ${i.notes}</div>` : '';
+    return `
+      <div class="order-line">
+        <div class="order-line-main">
+          <span class="order-line-name"><b>${i.qty}×</b> ${i.name}</span>
+          ${addonsHtml}
+          ${noteHtml}
+        </div>
+        <span style="color:var(--text-2);">${fmt(i.price * i.qty)}</span>
+      </div>
+    `;
+  }).join('');
 
   return `
     <article class="order-card">

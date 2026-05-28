@@ -75,8 +75,7 @@ const Auth = (() => {
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('b4_theme', next);
     const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.content = next === 'dark' ? '#0A0A0C' : '#EFEBE0';
-    // Atualiza ícones nos botões
+    if (metaTheme) metaTheme.content = next === 'dark' ? '#0A0A0C' : '#D2C8AC';
     document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
       btn.innerHTML = next === 'dark' ? '☀️' : '🌙';
       btn.title = next === 'dark' ? 'Modo claro' : 'Modo escuro';
@@ -94,7 +93,6 @@ const Auth = (() => {
     const current = window.location.pathname;
     const allowed = getAllowedPages();
 
-    // ===== Nav desktop (inline) =====
     let links = allowed.map(p =>
       `<a href="${p.path}" class="nav-tab ${current === p.path ? 'active' : ''}">${p.label}</a>`
     ).join('');
@@ -103,7 +101,6 @@ const Auth = (() => {
     }
     nav.innerHTML = links;
 
-    // ===== Controles do header (avatar + tema + hamburger) =====
     const existingControls = document.getElementById('headerControls');
     if (existingControls) existingControls.remove();
 
@@ -133,7 +130,6 @@ const Auth = (() => {
     toggle.addEventListener('click', toggleTheme);
     controls.appendChild(toggle);
 
-    // Hamburger (visível apenas no mobile via CSS)
     const hamb = document.createElement('button');
     hamb.className = 'nav-hamburger';
     hamb.id = 'navHamburger';
@@ -254,10 +250,70 @@ const Auth = (() => {
     document.body.style.overflow = '';
   }
 
-  // Fechar drawer com Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeDrawer();
   });
+
+  // ====== Setas de scroll nos chips (desktop) ======
+  function setupChipScrollers() {
+    const selectors = ['#categoryTabs', '#waiterCategories', '#adminCatFilters', '#filters'];
+    selectors.forEach(sel => {
+      const scroller = document.querySelector(sel);
+      if (!scroller || scroller.dataset.scrollerInit) return;
+      scroller.dataset.scrollerInit = '1';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'chip-scroller-wrap';
+      scroller.parentNode.insertBefore(wrap, scroller);
+      wrap.appendChild(scroller);
+
+      const btnLeft = document.createElement('button');
+      btnLeft.className = 'chip-scroll-btn chip-scroll-left';
+      btnLeft.setAttribute('aria-label', 'Mover para a esquerda');
+      btnLeft.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+      btnLeft.addEventListener('click', () => scroller.scrollBy({ left: -240, behavior: 'smooth' }));
+
+      const btnRight = document.createElement('button');
+      btnRight.className = 'chip-scroll-btn chip-scroll-right';
+      btnRight.setAttribute('aria-label', 'Mover para a direita');
+      btnRight.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+      btnRight.addEventListener('click', () => scroller.scrollBy({ left: 240, behavior: 'smooth' }));
+
+      wrap.appendChild(btnLeft);
+      wrap.appendChild(btnRight);
+
+      function update() {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          wrap.classList.add('chip-mobile');
+          return;
+        }
+        wrap.classList.remove('chip-mobile');
+        const overflow = scroller.scrollWidth - scroller.clientWidth;
+        const hasOverflow = overflow > 4;
+        const atStart = scroller.scrollLeft <= 4;
+        const atEnd = scroller.scrollLeft >= overflow - 4;
+        btnLeft.classList.toggle('visible', hasOverflow && !atStart);
+        btnRight.classList.toggle('visible', hasOverflow && !atEnd);
+      }
+
+      scroller.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+
+      const obs = new MutationObserver(() => requestAnimationFrame(update));
+      obs.observe(scroller, { childList: true });
+
+      update();
+      setTimeout(update, 100);
+    });
+  }
+
+  // Tenta configurar os scrollers quando o DOM ficar idle
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupChipScrollers);
+  } else {
+    setTimeout(setupChipScrollers, 0);
+  }
 
   async function guard(requiredPerm) {
     const user = await validate();

@@ -4,31 +4,54 @@ const fmtInt = (n) => n.toLocaleString('pt-BR');
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-const STATUS_LABELS = {
-  pendente: { label: 'Pendentes', icon: '⏱', cls: 'status-pendente' },
-  preparando: { label: 'Preparando', icon: '🍳', cls: 'status-preparando' },
-  pronto: { label: 'Prontos', icon: '✓', cls: 'status-pronto' },
-  entregue: { label: 'Entregues', icon: '📦', cls: 'status-entregue' },
-  cancelado: { label: 'Cancelados', icon: '✕', cls: 'status-cancelado' },
-};
-
 const PERIOD_LABELS = {
   today: 'Hoje',
   '7d': 'Últimos 7 dias',
   '30d': 'Últimos 30 dias',
 };
 
+const COLOR_MAP = {
+  warn:    { bg: 'var(--warn-soft)',    color: 'var(--warn)' },
+  info:    { bg: 'var(--info-soft)',    color: 'var(--info)' },
+  success: { bg: 'var(--success-soft)', color: 'var(--success)' },
+  neutral: { bg: 'var(--bg-3)',         color: 'var(--text-2)' },
+  danger:  { bg: 'var(--danger-soft)',  color: 'var(--danger)' },
+};
+
+function statusColorStyle(color) {
+  if (/^#[0-9A-Fa-f]{6}$/.test(color || '')) {
+    return `background:${color}22;color:${color};`;
+  }
+  const m = COLOR_MAP[color] || COLOR_MAP.neutral;
+  return `background:${m.bg};color:${m.color};`;
+}
+
+// Pluraliza para o card (mantém compat com nomes do usuário)
+function pluralizeStatus(name) {
+  const map = { 'Pendente': 'Pendentes', 'Preparando': 'Preparando', 'Pronto': 'Prontos', 'Entregue': 'Entregues', 'Cancelado': 'Cancelados' };
+  return map[name] || name;
+}
+
 const state = {
   range: 'today',
   data: null,
+  statuses: [], // workflow dinâmico
   chartTime: null,
   chartCategory: null,
 };
+
+async function loadStatuses() {
+  try {
+    const res = await fetch('/api/statuses');
+    state.statuses = (await res.json()).sort((a, b) => a.order - b.order);
+  } catch { state.statuses = []; }
+}
 
 (async () => {
   const user = await Auth.init('dashboard');
   if (!user) return;
   $('#pageContent').style.display = '';
+  await loadStatuses();
   bindRangeTabs();
   await loadData();
   setInterval(loadData, 60000); // refresh a cada 60s
@@ -101,14 +124,28 @@ function renderLateOrders(list) {
 }
 
 function renderStatus(counts) {
-  $('#statusGrid').innerHTML = Object.entries(STATUS_LABELS).map(([key, meta]) => `
-    <div class="status-card">
-      <div class="status-card-icon ${meta.cls}">${meta.icon}</div>
+  // Workflow dinâmico + "Cancelado" sempre no final
+  const list = [
+    ...state.statuses.map(s => ({ id: s.id, name: pluralizeStatus(s.name), icon: s.icon || '•', color: s.color })),
+    { id: 'cancelado', name: 'Cancelados', icon: '✕', color: 'danger' },
+  ];
+
+  // Inclui status presentes nos pedidos mas que NÃO estão no workflow ativo (legado/inativado)
+  const knownIds = new Set(list.map(s => s.id));
+  Object.keys(counts || {}).forEach(k => {
+    if (!knownIds.has(k) && (counts[k] || 0) > 0) {
+      list.push({ id: k, name: k.charAt(0).toUpperCase() + k.slice(1), icon: '•', color: 'neutral' });
+    }
+  });
+
+  $('#statusGrid').innerHTML = list.map(s => `
+    <a href="/pedidos?status=${encodeURIComponent(s.id)}" class="status-card" title="Ver pedidos: ${s.name}">
+      <div class="status-card-icon" style="${statusColorStyle(s.color)}">${s.icon}</div>
       <div class="status-card-meta">
-        <div class="status-card-label">${meta.label}</div>
-        <div class="status-card-value">${fmtInt(counts[key] || 0)}</div>
+        <div class="status-card-label">${s.name}</div>
+        <div class="status-card-value">${fmtInt(counts[s.id] || 0)}</div>
       </div>
-    </div>
+    </a>
   `).join('');
 }
 

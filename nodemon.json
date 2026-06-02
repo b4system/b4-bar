@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "data/*",
+    "public/uploads/*",
+    "node_modules/"
+  ],
+  "ext": "js,html,css,json",
+  "delay": "300"
+}

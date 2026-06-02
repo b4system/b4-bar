@@ -6,7 +6,11 @@ const state = {
   statuses: [],
   editing: null,
   selectedColor: 'neutral',
+  customColor: '#9C27B0',
 };
+
+const PRESETS = ['warn', 'info', 'success', 'neutral', 'danger'];
+const isHex = (c) => typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c);
 
 (async () => {
   const user = await Auth.init('configuracoes');
@@ -37,14 +41,18 @@ function renderList() {
       </div>`;
     return;
   }
-  wrap.innerHTML = state.statuses.map((s, idx) => `
-    <div class="status-config-row" data-id="${s.id}" draggable="true">
+  wrap.innerHTML = state.statuses.map((s, idx) => {
+    const customStyle = isHex(s.color) ? `style="background:${s.color}22;color:${s.color};border-color:${s.color}55;"` : '';
+    const customTagClass = isHex(s.color) ? '' : `color-${s.color}`;
+    const inactive = s.active === false;
+    return `
+    <div class="status-config-row ${inactive ? 'is-inactive' : ''}" data-id="${s.id}" draggable="true">
       <button class="status-drag" aria-label="Arrastar para reordenar">⋮⋮</button>
       <div class="status-icon-preview">${s.icon || '•'}</div>
       <div class="status-info">
-        <div class="status-config-name">${s.name}</div>
+        <div class="status-config-name">${s.name} ${inactive ? '<span class="status-inactive-pill">Inativo</span>' : ''}</div>
         <div class="status-config-meta">
-          <span class="color-tag color-${s.color}">${colorLabel(s.color)}</span>
+          <span class="color-tag ${customTagClass}" ${customStyle}>${isHex(s.color) ? s.color : colorLabel(s.color)}</span>
           <span class="status-config-id">id: ${s.id}</span>
         </div>
       </div>
@@ -52,10 +60,11 @@ function renderList() {
         <button class="icon-btn" data-action="up" ${idx === 0 ? 'disabled' : ''} title="Subir">↑</button>
         <button class="icon-btn" data-action="down" ${idx === state.statuses.length - 1 ? 'disabled' : ''} title="Descer">↓</button>
         <button class="icon-btn" data-action="edit" title="Editar">✎</button>
+        <button class="icon-btn ${inactive ? '' : 'warn'}" data-action="toggle" title="${inactive ? 'Reativar' : 'Inativar'}">${inactive ? '▶' : '⏸'}</button>
         <button class="icon-btn danger" data-action="del" title="Excluir">🗑</button>
       </div>
     </div>
-  `).join('') + `
+  `;}).join('') + `
     <div class="status-config-row status-locked">
       <div class="status-icon-preview">✕</div>
       <div class="status-info">
@@ -77,8 +86,27 @@ function renderList() {
       else if (action === 'del') deleteStatus(id);
       else if (action === 'up') move(id, -1);
       else if (action === 'down') move(id, 1);
+      else if (action === 'toggle') toggleActive(id);
     });
   });
+}
+
+async function toggleActive(id) {
+  const s = state.statuses.find(x => x.id === id);
+  if (!s) return;
+  const newActive = s.active === false;
+  try {
+    const res = await apiFetch(`/api/admin/statuses/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: newActive }),
+    });
+    if (!res.ok) throw new Error();
+    toast(newActive ? 'Status reativado' : 'Status inativado', 'info');
+    await loadStatuses();
+  } catch {
+    toast('Falha ao atualizar', 'error');
+  }
 }
 
 function colorLabel(c) {
@@ -110,7 +138,13 @@ function openModal(statusId) {
   $('#statusModalTitle').textContent = s ? 'Editar status' : 'Novo status';
   $('#statusName').value = s ? s.name : '';
   $('#statusIcon').value = s ? s.icon : '';
-  selectColor(s ? s.color : 'neutral');
+  const initialColor = s ? s.color : 'neutral';
+  if (isHex(initialColor)) {
+    state.customColor = initialColor;
+    $('#customSwatch').style.background = initialColor;
+    $('#customColorInput').value = initialColor;
+  }
+  selectColor(initialColor);
   $('#statusModal').classList.add('open');
   setTimeout(() => $('#statusName').focus(), 80);
 }
@@ -122,7 +156,13 @@ function closeModal() {
 
 function selectColor(c) {
   state.selectedColor = c;
-  $$('#colorPicker button').forEach(b => b.classList.toggle('active', b.dataset.color === c));
+  $$('#colorPicker button').forEach(b => {
+    if (isHex(c)) {
+      b.classList.toggle('active', b.dataset.color === 'custom');
+    } else {
+      b.classList.toggle('active', b.dataset.color === c);
+    }
+  });
 }
 
 async function saveStatus() {
@@ -196,4 +236,17 @@ $('#cancelStatus').addEventListener('click', closeModal);
 $('#closeStatusModal').addEventListener('click', closeModal);
 $('#statusModal').addEventListener('click', (e) => { if (e.target.id === 'statusModal') closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#statusModal').classList.contains('open')) closeModal(); });
-$$('#colorPicker button').forEach(b => b.addEventListener('click', () => selectColor(b.dataset.color)));
+$$('#colorPicker button').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.color === 'custom') {
+    $('#customColorInput').click();
+  } else {
+    selectColor(b.dataset.color);
+  }
+}));
+
+$('#customColorInput').addEventListener('input', (e) => {
+  const hex = e.target.value.toUpperCase();
+  state.customColor = hex;
+  $('#customSwatch').style.background = hex;
+  selectColor(hex);
+});

@@ -5,7 +5,14 @@ const state = {
   menu: null,
   search: '',
   activeCategory: null,
+  scrollingTo: 0, // timestamp do último scroll programático
+  spyObserver: null,
 };
+
+function primaryImage(it) {
+  if (Array.isArray(it.images) && it.images.length > 0) return it.images[0];
+  return it.image || '';
+}
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -39,8 +46,8 @@ function renderCategoryTabs() {
   tabs.querySelectorAll('.category-chip').forEach(btn => {
     btn.addEventListener('click', () => {
       const cat = btn.dataset.cat;
-      state.activeCategory = cat || null;
-      renderCategoryTabs();
+      setActiveCategory(cat || null);
+      state.scrollingTo = Date.now();
       if (cat) {
         const el = document.getElementById(`cat-${cat}`);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -49,6 +56,46 @@ function renderCategoryTabs() {
       }
     });
   });
+}
+
+// Atualiza só a classe ativa dos chips, sem re-render
+function setActiveCategory(cat) {
+  if (state.activeCategory === cat) return;
+  state.activeCategory = cat;
+  $$('#categoryTabs .category-chip').forEach(chip => {
+    chip.classList.toggle('active', (chip.dataset.cat || null) === cat);
+  });
+  // Scrolla o chip ativo horizontalmente para ficar visível
+  const active = $('#categoryTabs .category-chip.active');
+  if (active) {
+    active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+}
+
+// Observa as seções de categoria visíveis e atualiza o chip ativo
+function setupScrollSpy() {
+  if (state.spyObserver) state.spyObserver.disconnect();
+  const sections = $$('.category-section');
+  if (sections.length === 0) return;
+
+  state.spyObserver = new IntersectionObserver((entries) => {
+    // Ignora durante scroll programático (clique em chip)
+    if (Date.now() - state.scrollingTo < 700) return;
+    // Pega seções intersectantes ordenadas pelo topo
+    const visible = entries
+      .filter(e => e.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (visible.length === 0) return;
+    const id = visible[0].target.id; // 'cat-xyz'
+    const catId = id.replace(/^cat-/, '');
+    setActiveCategory(catId);
+  }, {
+    // Faixa de detecção: 180px abaixo do topo (header + filtro) até 60% da viewport
+    rootMargin: '-180px 0px -60% 0px',
+    threshold: 0,
+  });
+
+  sections.forEach(sec => state.spyObserver.observe(sec));
 }
 
 function renderMenu() {
@@ -83,7 +130,9 @@ function renderMenu() {
         <h2 class="category-title">${cat.name}</h2>
       </header>
       <div class="menu-grid">
-        ${cat.items.map(it => `
+        ${cat.items.map(it => {
+          const img = primaryImage(it);
+          return `
           <article class="menu-item">
             <div class="menu-item-body">
               <h3 class="menu-item-name">${it.name}</h3>
@@ -92,14 +141,17 @@ function renderMenu() {
                 <div class="menu-item-price">${fmt(it.price)}</div>
               </div>
             </div>
-            <div class="menu-item-thumb ${!it.image ? 'empty' : ''}"
-                 ${it.image ? `style="background-image:url('${it.image}');"` : ''}
+            <div class="menu-item-thumb ${!img ? 'empty' : ''}"
+                 ${img ? `style="background-image:url('${img}');"` : ''}
                  data-icon="${cat.icon}"></div>
           </article>
-        `).join('')}
+        `;}).join('')}
       </div>
     </section>
   `).join('');
+
+  // Reativa scroll spy após cada render
+  setTimeout(setupScrollSpy, 100);
 }
 
 // Search debounce

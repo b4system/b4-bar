@@ -3,4 +3,5 @@ public/uploads/
 data/orders.json
 data/staff.json
 data/statuses.json
+data/.session-secret
 .env

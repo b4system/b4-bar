@@ -59,12 +59,15 @@
       </header>
       <div class="modal-scroll">
         <div class="form-grid">
-          <div class="image-uploader" id="dropzone">
-            <div class="image-preview" id="imagePreview">
-              <span class="placeholder">Clique ou arraste uma imagem</span>
-              <button type="button" class="remove-img" id="removeImg" title="Remover">&times;</button>
+          <div class="image-multi">
+            <div class="image-multi-head">
+              <div>
+                <div class="addons-title">Imagens do produto</div>
+                <div class="addons-sub">Até 5 fotos. A primeira é o destaque exibido no cardápio.</div>
+              </div>
+              <div class="image-multi-count" id="imageCount">0 / 5</div>
             </div>
-            <div class="uploader-hint">JPG, PNG ou WebP — até 4MB</div>
+            <div class="image-slots" id="imageSlots"></div>
             <input type="file" id="imageInput" accept="image/*" style="display:none;" />
           </div>
 

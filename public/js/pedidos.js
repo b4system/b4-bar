@@ -22,12 +22,15 @@ function getNextStatus(currentId) {
 async function loadStatuses() {
   try {
     const res = await fetch('/api/statuses');
-    state.statuses = (await res.json()).sort((a, b) => a.order - b.order);
+    // Mantém só os ativos para o fluxo de pedidos
+    state.statuses = (await res.json()).filter(s => s.active !== false).sort((a, b) => a.order - b.order);
     renderFilters();
   } catch (err) {
     console.error(err);
   }
 }
+
+function isHexColor(c) { return typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c); }
 
 function renderFilters() {
   const wrap = $('#filters');
@@ -202,7 +205,9 @@ function renderOrder(o) {
           <div class="order-num">#${o.number.toString().padStart(4, '0')}</div>
         </div>
         <div style="text-align:right;">
-          <span class="status-badge status-color-${statusMeta.color}">${statusMeta.icon} ${statusMeta.name}</span>
+          ${isHexColor(statusMeta.color)
+            ? `<span class="status-badge" style="background:${statusMeta.color}22;color:${statusMeta.color};">${statusMeta.icon} ${statusMeta.name}</span>`
+            : `<span class="status-badge status-color-${statusMeta.color}">${statusMeta.icon} ${statusMeta.name}</span>`}
           ${expectedTs ? `<div class="order-expected ${isPastExpected ? 'late' : ''}">⏰ Pronto às ${formatClock(expectedTs)}</div>` : ''}
           <div class="order-time" style="margin-top:6px;">${timeAgo(o.createdAt)}</div>
           ${hasLate ? '<div class="order-late-badge">⚠ Atrasado</div>' : ''}
@@ -286,6 +291,15 @@ $('#filters').addEventListener('click', (e) => {
   const user = await Auth.init('pedidos');
   if (!user) return;
   await loadStatuses();
+
+  // Pré-aplica filtro vindo da URL (ex: /pedidos?status=preparando)
+  const params = new URLSearchParams(window.location.search);
+  const initialFilter = params.get('status');
+  if (initialFilter !== null) {
+    state.filter = initialFilter;
+    renderFilters();
+  }
+
   fetchOrders();
   setInterval(fetchOrders, 10000); // refresh do servidor
   setInterval(() => {

@@ -10,11 +10,13 @@ const state = {
   search: '',
   filterCategory: null,
   editing: null,
-  imageUrl: '',
+  images: [], // até 5 imagens do produto sendo editado
   uploading: false,
   categoryEditing: null,
-  addons: [], // adicionais do produto sendo editado
+  addons: [],
 };
+
+const MAX_IMAGES = 5;
 
 const fmtCurrency = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -115,9 +117,12 @@ function renderList() {
       <div class="admin-items">
         ${cat.filteredItems.length === 0
           ? `<div class="admin-empty-cat">Nenhum item ${term ? 'encontrado' : 'nesta categoria'}</div>`
-          : cat.filteredItems.map(it => `
+          : cat.filteredItems.map(it => {
+            const thumbImg = (Array.isArray(it.images) && it.images[0]) || it.image || '';
+            const imgCount = Array.isArray(it.images) ? it.images.length : (it.image ? 1 : 0);
+            return `
             <div class="admin-item" data-action="edit-item" data-id="${it.id}" role="button" tabindex="0">
-              <div class="admin-item-thumb" ${it.image ? `style="background-image:url('${it.image}');"` : ''}>${!it.image ? '🖼' : ''}</div>
+              <div class="admin-item-thumb" ${thumbImg ? `style="background-image:url('${thumbImg}');"` : ''}>${!thumbImg ? '🖼' : ''}${imgCount > 1 ? `<span class="img-count-badge">${imgCount}</span>` : ''}</div>
               <div class="admin-item-info">
                 <div class="admin-item-name">${it.name}</div>
                 <div class="admin-item-meta">${it.description ? it.description.slice(0, 50) + (it.description.length > 50 ? '…' : '') + ' · ' : ''}<b>${fmt(it.price)}</b></div>
@@ -127,7 +132,7 @@ function renderList() {
                 <button class="icon-btn danger" data-action="del-item" data-id="${it.id}" title="Excluir">🗑</button>
               </div>
             </div>
-          `).join('')
+          `;}).join('')
         }
       </div>
     </article>
@@ -153,7 +158,7 @@ function renderList() {
 // ====== Modal de produto ======
 function openProductModal(itemId, preselectedCat) {
   state.editing = null;
-  state.imageUrl = '';
+  state.images = [];
   state.addons = [];
 
   if (itemId) {
@@ -164,7 +169,9 @@ function openProductModal(itemId, preselectedCat) {
     }
     if (!found) return;
     state.editing = { ...found, categoryId: foundCat.id };
-    state.imageUrl = found.image || '';
+    // Compatibilidade: usa images[] se houver, senão cai em image (string)
+    if (Array.isArray(found.images) && found.images.length > 0) state.images = [...found.images];
+    else if (found.image) state.images = [found.image];
     state.addons = Array.isArray(found.addons) ? found.addons.map(a => ({ ...a })) : [];
     $('#productModalTitle').textContent = 'Editar produto';
     $('#itemName').value = found.name;
@@ -189,9 +196,54 @@ function openProductModal(itemId, preselectedCat) {
   renderAddonsList();
   $('#newAddonName').value = '';
   $('#newAddonPrice').value = '';
-  updateImagePreview(state.imageUrl);
+  renderImageSlots();
   $('#productModal').classList.add('open');
   setTimeout(() => $('#itemName').focus(), 80);
+}
+
+// ====== Slots de imagens (até 5) ======
+function renderImageSlots() {
+  const wrap = $('#imageSlots');
+  $('#imageCount').textContent = `${state.images.length} / ${MAX_IMAGES}`;
+  const slots = [];
+  state.images.forEach((url, idx) => {
+    slots.push(`
+      <div class="image-slot filled ${idx === 0 ? 'primary' : ''}" data-idx="${idx}">
+        <div class="image-slot-bg" style="background-image:url('${url}');"></div>
+        ${idx === 0 ? '<span class="image-slot-tag">Destaque</span>' : ''}
+        <button type="button" class="image-slot-remove" data-action="remove" data-idx="${idx}" aria-label="Remover">&times;</button>
+        ${idx > 0 ? `<button type="button" class="image-slot-star" data-action="primary" data-idx="${idx}" title="Definir como destaque">★</button>` : ''}
+      </div>
+    `);
+  });
+  if (state.images.length < MAX_IMAGES) {
+    slots.push(`
+      <button type="button" class="image-slot empty" data-action="add">
+        <span class="image-slot-plus">+</span>
+        <span class="image-slot-label">Adicionar foto</span>
+      </button>
+    `);
+  }
+  wrap.innerHTML = slots.join('');
+
+  wrap.querySelectorAll('[data-action]').forEach(el => {
+    const action = el.dataset.action;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (action === 'add') {
+        $('#imageInput').click();
+      } else if (action === 'remove') {
+        const idx = parseInt(el.dataset.idx);
+        state.images.splice(idx, 1);
+        renderImageSlots();
+      } else if (action === 'primary') {
+        const idx = parseInt(el.dataset.idx);
+        const [item] = state.images.splice(idx, 1);
+        state.images.unshift(item);
+        renderImageSlots();
+      }
+    });
+  });
 }
 
 function renderAddonsList() {
@@ -245,7 +297,7 @@ async function saveItem() {
 
   const observable = $('#itemObservable').checked;
   const prepTime = parseInt($('#itemPrepTime').value) || 0;
-  const payload = { name, description, price, image: state.imageUrl, categoryId, observable, addons: state.addons, prepTime };
+  const payload = { name, description, price, images: state.images, categoryId, observable, addons: state.addons, prepTime };
   const btn = $('#saveItem');
   btn.disabled = true;
   const orig = btn.textContent;
@@ -291,25 +343,13 @@ async function deleteItem(id) {
 }
 
 // ====== Upload de imagem ======
-function updateImagePreview(url) {
-  const prev = $('#imagePreview');
-  if (url) {
-    prev.style.backgroundImage = `url('${url}')`;
-    prev.classList.add('has-image');
-  } else {
-    prev.style.backgroundImage = '';
-    prev.classList.remove('has-image');
-  }
-}
-
 async function uploadFile(file) {
   if (state.uploading) return;
+  if (state.images.length >= MAX_IMAGES) return toast(`Máximo de ${MAX_IMAGES} imagens`, 'error');
   if (!file.type.startsWith('image/')) return toast('Selecione um arquivo de imagem', 'error');
   if (file.size > 4 * 1024 * 1024) return toast('Imagem maior que 4MB', 'error');
 
   state.uploading = true;
-  const dz = $('#dropzone');
-  dz.style.opacity = '0.6';
   const fd = new FormData();
   fd.append('image', file);
   try {
@@ -319,14 +359,13 @@ async function uploadFile(file) {
       throw new Error(err.error || 'Falha no upload');
     }
     const { url } = await res.json();
-    state.imageUrl = url;
-    updateImagePreview(url);
+    state.images.push(url);
+    renderImageSlots();
     toast('Imagem carregada', 'success');
   } catch (e) {
     toast(e.message || 'Falha no upload', 'error');
   } finally {
     state.uploading = false;
-    dz.style.opacity = '1';
   }
 }
 
@@ -461,32 +500,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Upload de imagem
-const dz = $('#dropzone');
+// Upload de imagem — múltiplas
 const imgInput = $('#imageInput');
-dz.addEventListener('click', (e) => {
-  if (e.target.id === 'removeImg') return;
-  imgInput.click();
-});
 imgInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (file) uploadFile(file);
   imgInput.value = '';
-});
-['dragover', 'dragenter'].forEach(evt => {
-  dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.add('dragover'); });
-});
-['dragleave', 'drop'].forEach(evt => {
-  dz.addEventListener(evt, (e) => { e.preventDefault(); dz.classList.remove('dragover'); });
-});
-dz.addEventListener('drop', (e) => {
-  const file = e.dataTransfer.files[0];
-  if (file) uploadFile(file);
-});
-$('#removeImg').addEventListener('click', (e) => {
-  e.stopPropagation();
-  state.imageUrl = '';
-  updateImagePreview('');
 });
 
 renderEmojiGrid();

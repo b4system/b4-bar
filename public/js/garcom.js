@@ -84,9 +84,10 @@ function renderWaiterItems() {
   wrap.innerHTML = items.map(it => {
     const hasAddons = Array.isArray(it.addons) && it.addons.length > 0;
     const needsModal = it.observable || hasAddons;
+    const img = (Array.isArray(it.images) && it.images[0]) || it.image || '';
     return `
       <button class="waiter-item" data-id="${it.id}">
-        <div class="waiter-item-thumb" ${it.image ? `style="background-image:url('${it.image}');"` : ''}>${!it.image ? '🖼' : ''}</div>
+        <div class="waiter-item-thumb" ${img ? `style="background-image:url('${img}');"` : ''}>${!img ? '🖼' : ''}</div>
         <div class="waiter-item-name">${it.name}${needsModal ? ' <span class="obs-tag" title="Personalizável">✎</span>' : ''}</div>
         <div class="waiter-item-price">${fmt(it.price)}</div>
       </button>

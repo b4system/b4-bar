@@ -63,8 +63,35 @@ if (!fs.existsSync(STAFF_FILE)) {
   if (changed) writeJSON(STAFF_FILE, staff);
 }
 
-// Sessões em memória (token → { staffId, createdAt })
-const sessions = new Map();
+// ===== Sessões: tokens assinados (sobrevivem a restarts do servidor) =====
+const SECRET_FILE = path.join(DATA_DIR, '.session-secret');
+if (!fs.existsSync(SECRET_FILE)) {
+  fs.writeFileSync(SECRET_FILE, crypto.randomBytes(48).toString('hex'));
+}
+const SESSION_SECRET = fs.readFileSync(SECRET_FILE, 'utf-8').trim();
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+
+function signToken(staffId) {
+  const expiry = Date.now() + SESSION_TTL_MS;
+  const payload = `${staffId}.${expiry}`;
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [staffId, expiryStr, sig] = parts;
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(`${staffId}.${expiryStr}`).digest('hex');
+  if (sig.length !== expectedSig.length) return null;
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expectedSig, 'hex'))) return null;
+  } catch { return null; }
+  const expiry = parseInt(expiryStr);
+  if (!expiry || Date.now() > expiry) return null;
+  return staffId;
+}
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -74,10 +101,10 @@ function getSession(req) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) return null;
   const token = header.slice(7);
-  const session = sessions.get(token);
-  if (!session) return null;
-  const staff = readJSON(STAFF_FILE).find(s => s.id === session.staffId && s.active);
-  if (!staff) { sessions.delete(token); return null; }
+  const staffId = verifyToken(token);
+  if (!staffId) return null;
+  const staff = readJSON(STAFF_FILE).find(s => s.id === staffId && s.active);
+  if (!staff) return null;
   return staff;
 }
 
@@ -134,8 +161,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (!user) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
   const match = await bcrypt.compare(password, user.password);
   if (!match) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
-  const token = genToken();
-  sessions.set(token, { staffId: user.id, createdAt: Date.now() });
+  const token = signToken(user.id);
   res.json({
     token,
     user: { id: user.id, name: user.name, username: user.username, role: user.role, permissions: user.permissions },
@@ -148,9 +174,8 @@ app.get('/api/auth/me', (req, res) => {
   res.json({ id: staff.id, name: staff.name, username: staff.username, role: staff.role, permissions: staff.permissions });
 });
 
-app.post('/api/auth/logout', (req, res) => {
-  const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) sessions.delete(header.slice(7));
+app.post('/api/auth/logout', (_req, res) => {
+  // Token é stateless — cliente apaga localmente
   res.json({ ok: true });
 });
 
@@ -219,10 +244,21 @@ app.delete('/api/admin/staff/:id', requireAuth(['funcionarios']), (req, res) => 
 });
 
 // ===== API: STATUSES (workflow dos pedidos) =====
+function sanitizeColor(c) {
+  if (!c) return 'neutral';
+  const presets = ['warn', 'info', 'success', 'neutral', 'danger'];
+  if (presets.includes(c)) return c;
+  if (/^#[0-9A-Fa-f]{6}$/.test(c)) return c.toUpperCase();
+  return 'neutral';
+}
+
 function getStatuses() {
   try {
     const list = readJSON(STATUSES_FILE);
-    return Array.isArray(list) ? list.sort((a, b) => a.order - b.order) : [];
+    if (!Array.isArray(list)) return [];
+    // Migra status legados: active = true por padrão
+    return list.map(s => ({ ...s, active: s.active !== false }))
+      .sort((a, b) => a.order - b.order);
   } catch { return []; }
 }
 
@@ -243,7 +279,7 @@ app.post('/api/admin/statuses', requireAuth(['configuracoes']), (req, res) => {
     return res.status(409).json({ error: 'Já existe um status com esse identificador' });
   }
   const order = (statuses[statuses.length - 1]?.order || 0) + 1;
-  const newStatus = { id, name, icon: icon || '•', color: color || 'neutral', order };
+  const newStatus = { id, name, icon: icon || '•', color: sanitizeColor(color), order, active: true };
   statuses.push(newStatus);
   writeJSON(STATUSES_FILE, statuses);
   res.status(201).json(newStatus);
@@ -253,10 +289,11 @@ app.patch('/api/admin/statuses/:id', requireAuth(['configuracoes']), (req, res) 
   const statuses = getStatuses();
   const s = statuses.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ error: 'Status não encontrado' });
-  const { name, icon, color } = req.body;
+  const { name, icon, color, active } = req.body;
   if (name !== undefined) s.name = name;
   if (icon !== undefined) s.icon = icon;
-  if (color !== undefined) s.color = color;
+  if (color !== undefined) s.color = sanitizeColor(color);
+  if (active !== undefined) s.active = !!active;
   writeJSON(STATUSES_FILE, statuses);
   res.json(s);
 });
@@ -347,20 +384,28 @@ function sanitizeAddons(arr) {
     }));
 }
 
+function sanitizeImages(images, fallbackImage) {
+  let arr = Array.isArray(images) ? images.filter(Boolean) : [];
+  if (arr.length === 0 && fallbackImage) arr = [fallbackImage];
+  return arr.slice(0, 5);
+}
+
 app.post('/api/admin/items', (req, res) => {
-  const { categoryId, name, description, price, image, observable, addons, prepTime } = req.body;
+  const { categoryId, name, description, price, image, images, observable, addons, prepTime } = req.body;
   if (!categoryId || !name || price == null) {
     return res.status(400).json({ error: 'categoryId, name e price são obrigatórios' });
   }
   const menu = readJSON(MENU_FILE);
   const cat = menu.categories.find(c => c.id === categoryId);
   if (!cat) return res.status(404).json({ error: 'Categoria não encontrada' });
+  const imgs = sanitizeImages(images, image);
   const item = {
     id: genId('i'),
     name,
     description: description || '',
     price: parseFloat(price),
-    image: image || '',
+    image: imgs[0] || '', // compat com clients antigos
+    images: imgs,
     observable: !!observable,
     addons: sanitizeAddons(addons),
     prepTime: Math.max(0, parseInt(prepTime) || 0),
@@ -378,11 +423,17 @@ app.patch('/api/admin/items/:id', (req, res) => {
     if (it) { found = it; foundCat = cat; break; }
   }
   if (!found) return res.status(404).json({ error: 'Item não encontrado' });
-  const { name, description, price, image, categoryId, observable, addons, prepTime } = req.body;
+  const { name, description, price, image, images, categoryId, observable, addons, prepTime } = req.body;
   if (name !== undefined) found.name = name;
   if (description !== undefined) found.description = description;
   if (price !== undefined) found.price = parseFloat(price);
-  if (image !== undefined) found.image = image;
+  if (images !== undefined) {
+    found.images = sanitizeImages(images, image);
+    found.image = found.images[0] || '';
+  } else if (image !== undefined) {
+    found.image = image;
+    found.images = image ? [image] : [];
+  }
   if (observable !== undefined) found.observable = !!observable;
   if (addons !== undefined) found.addons = sanitizeAddons(addons);
   if (prepTime !== undefined) found.prepTime = Math.max(0, parseInt(prepTime) || 0);
@@ -398,14 +449,22 @@ app.patch('/api/admin/items/:id', (req, res) => {
 
 app.delete('/api/admin/items/:id', (req, res) => {
   const menu = readJSON(MENU_FILE);
-  let removed = false, removedImage = '';
+  let removed = false, removedImages = [];
   for (const cat of menu.categories) {
     const idx = cat.items.findIndex(i => i.id === req.params.id);
-    if (idx !== -1) { removedImage = cat.items[idx].image || ''; cat.items.splice(idx, 1); removed = true; break; }
+    if (idx !== -1) {
+      const it = cat.items[idx];
+      removedImages = Array.isArray(it.images) && it.images.length > 0 ? it.images : (it.image ? [it.image] : []);
+      cat.items.splice(idx, 1);
+      removed = true;
+      break;
+    }
   }
   if (!removed) return res.status(404).json({ error: 'Item não encontrado' });
   writeJSON(MENU_FILE, menu);
-  if (removedImage && removedImage.startsWith('/uploads/')) fs.unlink(path.join(__dirname, 'public', removedImage), () => {});
+  removedImages.forEach(url => {
+    if (url && url.startsWith('/uploads/')) fs.unlink(path.join(__dirname, 'public', url), () => {});
+  });
   res.json({ ok: true });
 });
 
@@ -588,11 +647,21 @@ app.patch('/api/orders/:id', (req, res) => {
   const orders = readJSON(ORDERS_FILE);
   const idx = orders.findIndex(o => o.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Pedido não encontrado' });
+  const now = Date.now();
   orders[idx].status = status;
-  orders[idx].updatedAt = Date.now();
+  orders[idx].updatedAt = now;
   // Registra preparingAt na primeira vez que entra em "preparando" (mantido para histórico)
   if (status === 'preparando' && !orders[idx].preparingAt) {
-    orders[idx].preparingAt = Date.now();
+    orders[idx].preparingAt = now;
+  }
+  // Quando vira "pronto" ou "entregue", marca todos os itens como prontos
+  if ((status === 'pronto' || status === 'entregue') && Array.isArray(orders[idx].items)) {
+    orders[idx].items.forEach(it => {
+      if (!it.ready) {
+        it.ready = true;
+        it.readyAt = now;
+      }
+    });
   }
   writeJSON(ORDERS_FILE, orders);
   res.json(orders[idx]);

@@ -10,13 +10,21 @@ const Auth = (() => {
   const TOKEN_KEY = 'b4_token';
   const USER_KEY = 'b4_user';
 
+  // Páginas do nav principal (Área Interna agrupa dashboard/produtos/funcionários/configurações)
   const PAGES = [
-    { path: '/',              label: 'Cardápio',      perm: null,           icon: '📖' },
+    { path: '/',              label: 'Cardápio',      perm: null,         icon: '📖' },
+    { path: '/garcom',        label: 'Garçom',        perm: 'garcom',     icon: '📝' },
+    { path: '/pedidos',       label: 'Pedidos',       perm: 'pedidos',    icon: '🧾' },
+    { path: '/area-interna',  label: 'Área Interna',  perm: null, icon: '⚙️',
+      anyPerms: ['dashboard', 'produtos', 'funcionarios', 'configuracoes'] },
+  ];
+
+  // Sub-abas dentro da Área Interna
+  const SUB_TABS = [
     { path: '/dashboard',     label: 'Dashboard',     perm: 'dashboard',    icon: '📊' },
-    { path: '/garcom',        label: 'Garçom',        perm: 'garcom',       icon: '📝' },
-    { path: '/pedidos',       label: 'Pedidos',       perm: 'pedidos',      icon: '🧾' },
     { path: '/admin',         label: 'Produtos',      perm: 'produtos',     icon: '🍽️' },
     { path: '/funcionarios',  label: 'Funcionários',  perm: 'funcionarios', icon: '👥' },
+    { path: '/configuracoes', label: 'Configurações', perm: 'configuracoes', icon: '⚙️' },
   ];
 
   function getToken() { return localStorage.getItem(TOKEN_KEY); }
@@ -66,7 +74,30 @@ const Auth = (() => {
 
   function getAllowedPages() {
     const user = getUser();
-    return PAGES.filter(p => p.perm === null || (user && user.permissions && user.permissions.includes(p.perm)));
+    return PAGES.filter(p => {
+      if (p.perm === null && !p.anyPerms) return true;
+      if (!user || !user.permissions) return false;
+      if (p.anyPerms) return p.anyPerms.some(perm => user.permissions.includes(perm));
+      return user.permissions.includes(p.perm);
+    });
+  }
+
+  function getAllowedSubTabs() {
+    const user = getUser();
+    return SUB_TABS.filter(t => user && user.permissions && user.permissions.includes(t.perm));
+  }
+
+  function buildSubTabs(containerId) {
+    const wrap = document.getElementById(containerId);
+    if (!wrap) return;
+    const tabs = getAllowedSubTabs();
+    const current = window.location.pathname;
+    wrap.innerHTML = tabs.map(t => `
+      <a href="${t.path}" class="sub-tab ${current === t.path ? 'active' : ''}">
+        <span class="sub-tab-icon">${t.icon}</span>
+        <span class="sub-tab-label">${t.label}</span>
+      </a>
+    `).join('');
   }
 
   function toggleTheme() {
@@ -157,15 +188,31 @@ const Auth = (() => {
     const current = window.location.pathname;
     const allowed = getAllowedPages();
 
-    const items = allowed.map(p => `
-      <a href="${p.path}" class="drawer-item ${current === p.path ? 'active' : ''}">
-        <span class="drawer-item-icon">${p.icon}</span>
-        <span class="drawer-item-label">${p.label}</span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-item-chev">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </a>
-    `).join('');
+    const subTabs = getAllowedSubTabs();
+    const insideArea = ['/dashboard', '/admin', '/funcionarios', '/configuracoes', '/area-interna'].includes(current);
+    const items = allowed.map(p => {
+      const isAreaInterna = p.path === '/area-interna';
+      const activeMatch = current === p.path || (isAreaInterna && insideArea);
+      let html = `
+        <a href="${p.path}" class="drawer-item ${activeMatch ? 'active' : ''}">
+          <span class="drawer-item-icon">${p.icon}</span>
+          <span class="drawer-item-label">${p.label}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="drawer-item-chev">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </a>
+      `;
+      // Se for Área Interna e tiver sub-abas, lista elas indentadas
+      if (isAreaInterna && subTabs.length > 0) {
+        html += subTabs.map(t => `
+          <a href="${t.path}" class="drawer-item drawer-sub-item ${current === t.path ? 'active' : ''}">
+            <span class="drawer-item-icon">${t.icon}</span>
+            <span class="drawer-item-label">${t.label}</span>
+          </a>
+        `).join('');
+      }
+      return html;
+    }).join('');
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
@@ -318,6 +365,7 @@ const Auth = (() => {
   async function guard(requiredPerm) {
     const user = await validate();
     buildNav();
+    if (document.getElementById('subTabs')) buildSubTabs('subTabs');
     if (!requiredPerm) return user;
     if (!user || !user.permissions.includes(requiredPerm)) {
       window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
@@ -330,5 +378,5 @@ const Auth = (() => {
     return guard(requiredPerm);
   }
 
-  return { getToken, getUser, setSession, clearSession, hasPerm, authHeaders, validate, logout, buildNav, init };
+  return { getToken, getUser, setSession, clearSession, hasPerm, authHeaders, validate, logout, buildNav, buildSubTabs, init };
 })();

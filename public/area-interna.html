@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
   <meta name="theme-color" content="#D2C8AC" />
-  <title>B4 Bar — Pedidos</title>
+  <title>B4 Bar — Área Interna</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
         <div class="brand-logo">B4</div>
         <div>
           <div class="brand-name">B4 Bar</div>
-          <div class="brand-sub">Pedidos em andamento</div>
+          <div class="brand-sub">Área Interna</div>
         </div>
       </a>
       <nav class="nav-tabs" id="mainNav" aria-label="Navegação"></nav>
@@ -26,19 +26,26 @@
   </header>
 
   <main class="container">
-    <h1 class="page-title">Pedidos</h1>
-    <p class="page-subtitle">Atualiza automaticamente a cada 5 segundos.</p>
-
-    <nav class="orders-filters" id="filters" aria-label="Filtros"></nav>
-
-    <div id="ordersContent"></div>
+    <div class="empty-state" id="loading">
+      <div class="empty-state-icon">⏳</div>
+      <div class="empty-state-title">Redirecionando...</div>
+    </div>
   </main>
 
-  <div class="toast-container" id="toasts"></div>
-
   <script src="/js/auth.js"></script>
-  <script src="/js/pedidos.js"></script>
+  <script>
+    (async () => {
+      const user = await Auth.validate();
+      Auth.buildNav();
+      const order = [
+        { perm: 'dashboard', path: '/dashboard' },
+        { perm: 'produtos', path: '/admin' },
+        { perm: 'funcionarios', path: '/funcionarios' },
+        { perm: 'configuracoes', path: '/configuracoes' },
+      ];
+      const target = user && order.find(o => user.permissions.includes(o.perm));
+      window.location.href = target ? target.path : '/login?redirect=/area-interna';
+    })();
+  </script>
 </body>
 </html>
-
-

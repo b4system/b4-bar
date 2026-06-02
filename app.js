@@ -13,6 +13,7 @@ const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
 const MENU_FILE = path.join(DATA_DIR, 'menu.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const STAFF_FILE = path.join(DATA_DIR, 'staff.json');
+const STATUSES_FILE = path.join(DATA_DIR, 'statuses.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -24,6 +25,16 @@ const genId = (prefix = '') => prefix + Date.now().toString(36) + Math.random().
 const BCRYPT_ROUNDS = 10;
 const genToken = () => crypto.randomBytes(32).toString('hex');
 
+// Inicializa statuses.json com workflow padrão (cancelado é implícito, sempre disponível)
+if (!fs.existsSync(STATUSES_FILE)) {
+  writeJSON(STATUSES_FILE, [
+    { id: 'pendente', name: 'Pendente', icon: '⏱', color: 'warn', order: 1 },
+    { id: 'preparando', name: 'Preparando', icon: '🍳', color: 'info', order: 2 },
+    { id: 'pronto', name: 'Pronto', icon: '✓', color: 'success', order: 3 },
+    { id: 'entregue', name: 'Entregue', icon: '📦', color: 'neutral', order: 4 },
+  ]);
+}
+
 // Inicializa staff.json com admin padrão se não existir
 if (!fs.existsSync(STAFF_FILE)) {
   writeJSON(STAFF_FILE, [
@@ -33,19 +44,20 @@ if (!fs.existsSync(STAFF_FILE)) {
       username: 'admin',
       password: bcrypt.hashSync('admin123', BCRYPT_ROUNDS),
       role: 'admin',
-      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios', 'dashboard'],
+      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios', 'dashboard', 'configuracoes'],
       active: true,
       createdAt: Date.now(),
     }
   ]);
 } else {
-  // Migração: adiciona permissão 'dashboard' ao admin se não tiver
+  // Migração: garante permissões 'dashboard' e 'configuracoes' no admin
   const staff = readJSON(STAFF_FILE);
   let changed = false;
   staff.forEach(s => {
-    if (s.id === 'admin' && !s.permissions.includes('dashboard')) {
-      s.permissions.push('dashboard');
-      changed = true;
+    if (s.id === 'admin') {
+      ['dashboard', 'configuracoes'].forEach(p => {
+        if (!s.permissions.includes(p)) { s.permissions.push(p); changed = true; }
+      });
     }
   });
   if (changed) writeJSON(STAFF_FILE, staff);
@@ -109,6 +121,9 @@ app.get('/pedidos', (_req, res) => res.sendFile(path.join(__dirname, 'public', '
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/funcionarios', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'funcionarios.html')));
 app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/configuracoes', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'configuracoes.html')));
+// Área Interna entra na primeira aba disponível para o usuário (decidido no client)
+app.get('/area-interna', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'area-interna.html')));
 
 // ===== API: AUTENTICAÇÃO =====
 app.post('/api/auth/login', async (req, res) => {
@@ -201,6 +216,78 @@ app.delete('/api/admin/staff/:id', requireAuth(['funcionarios']), (req, res) => 
   if (filtered.length === staff.length) return res.status(404).json({ error: 'Funcionário não encontrado' });
   writeJSON(STAFF_FILE, filtered);
   res.json({ ok: true });
+});
+
+// ===== API: STATUSES (workflow dos pedidos) =====
+function getStatuses() {
+  try {
+    const list = readJSON(STATUSES_FILE);
+    return Array.isArray(list) ? list.sort((a, b) => a.order - b.order) : [];
+  } catch { return []; }
+}
+
+function isValidStatus(id) {
+  if (id === 'cancelado') return true; // sempre disponível
+  return getStatuses().some(s => s.id === id);
+}
+
+// Público: pedidos.js usa para renderizar labels
+app.get('/api/statuses', (_req, res) => res.json(getStatuses()));
+
+app.post('/api/admin/statuses', requireAuth(['configuracoes']), (req, res) => {
+  const { name, icon, color } = req.body;
+  if (!name) return res.status(400).json({ error: 'Nome é obrigatório' });
+  const statuses = getStatuses();
+  const id = (name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')) || genId('s');
+  if (id === 'cancelado' || statuses.some(s => s.id === id)) {
+    return res.status(409).json({ error: 'Já existe um status com esse identificador' });
+  }
+  const order = (statuses[statuses.length - 1]?.order || 0) + 1;
+  const newStatus = { id, name, icon: icon || '•', color: color || 'neutral', order };
+  statuses.push(newStatus);
+  writeJSON(STATUSES_FILE, statuses);
+  res.status(201).json(newStatus);
+});
+
+app.patch('/api/admin/statuses/:id', requireAuth(['configuracoes']), (req, res) => {
+  const statuses = getStatuses();
+  const s = statuses.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ error: 'Status não encontrado' });
+  const { name, icon, color } = req.body;
+  if (name !== undefined) s.name = name;
+  if (icon !== undefined) s.icon = icon;
+  if (color !== undefined) s.color = color;
+  writeJSON(STATUSES_FILE, statuses);
+  res.json(s);
+});
+
+app.delete('/api/admin/statuses/:id', requireAuth(['configuracoes']), (req, res) => {
+  const statuses = getStatuses();
+  const idx = statuses.findIndex(x => x.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Status não encontrado' });
+  // Bloqueia exclusão se houver pedidos usando esse status
+  const orders = readJSON(ORDERS_FILE);
+  if (orders.some(o => o.status === req.params.id)) {
+    return res.status(409).json({ error: 'Existem pedidos usando este status. Mude-os antes de excluir.' });
+  }
+  if (statuses.length <= 1) {
+    return res.status(409).json({ error: 'É necessário manter pelo menos um status.' });
+  }
+  statuses.splice(idx, 1);
+  writeJSON(STATUSES_FILE, statuses);
+  res.json({ ok: true });
+});
+
+app.put('/api/admin/statuses/reorder', requireAuth(['configuracoes']), (req, res) => {
+  const { order } = req.body; // array de ids na nova ordem
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order precisa ser uma lista' });
+  const statuses = getStatuses();
+  order.forEach((id, idx) => {
+    const s = statuses.find(x => x.id === id);
+    if (s) s.order = idx + 1;
+  });
+  writeJSON(STATUSES_FILE, statuses);
+  res.json(getStatuses());
 });
 
 // ===== API: CARDÁPIO =====
@@ -418,24 +505,25 @@ app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
   });
   const topWaiters = Object.values(waiterMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
-  // ===== Pedidos atrasados (em preparando há mais tempo que o esperado) =====
+  // ===== Pedidos atrasados (a partir da criação) =====
+  // Considera pedidos abertos (não entregues/cancelados) cujo prazo já passou
   const nowMs = Date.now();
   const lateOrders = [];
+  const closedStatuses = ['entregue', 'cancelado'];
   orders.forEach(o => {
-    if (o.status !== 'preparando' || !o.preparingAt) return;
+    if (closedStatuses.includes(o.status)) return;
     if (!Array.isArray(o.items) || o.items.length === 0) return;
-    // Item atrasado: não está pronto E (preparingAt + prepTime) < now
+    const startTs = o.createdAt;
     const lateItems = o.items.filter(i =>
-      !i.ready && i.prepTime > 0 && (o.preparingAt + i.prepTime * 60000) < nowMs
+      !i.ready && i.prepTime > 0 && (startTs + i.prepTime * 60000) < nowMs
     );
     if (lateItems.length === 0) return;
-    // Maior atraso entre os itens
     const maxLateMs = Math.max(...lateItems.map(i =>
-      nowMs - (o.preparingAt + i.prepTime * 60000)
+      nowMs - (startTs + i.prepTime * 60000)
     ));
     lateOrders.push({
       id: o.id, number: o.number, table: o.table, waiter: o.waiter,
-      preparingAt: o.preparingAt,
+      createdAt: o.createdAt, status: o.status,
       lateMinutes: Math.floor(maxLateMs / 60000),
       lateItems: lateItems.map(i => ({ name: i.name, qty: i.qty, prepTime: i.prepTime })),
     });
@@ -496,13 +584,13 @@ app.post('/api/orders', (req, res) => {
 
 app.patch('/api/orders/:id', (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['pendente', 'preparando', 'pronto', 'entregue', 'cancelado'];
-  if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Status inválido' });
+  if (!isValidStatus(status)) return res.status(400).json({ error: 'Status inválido' });
   const orders = readJSON(ORDERS_FILE);
   const idx = orders.findIndex(o => o.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Pedido não encontrado' });
   orders[idx].status = status;
   orders[idx].updatedAt = Date.now();
+  // Registra preparingAt na primeira vez que entra em "preparando" (mantido para histórico)
   if (status === 'preparando' && !orders[idx].preparingAt) {
     orders[idx].preparingAt = Date.now();
   }

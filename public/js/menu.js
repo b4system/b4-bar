@@ -114,3 +114,22 @@ $('#search').addEventListener('input', (e) => {
 
 Auth.init();
 loadMenu();
+
+// Detecta quando o filtro está "grudado" no topo para realçar a sombra
+(function setupStickyFilter() {
+  const wrap = document.getElementById('categoryTabs');
+  if (!wrap) return;
+  // Espera o auth.js envolver com .chip-scroller-wrap
+  setTimeout(() => {
+    const scrollerWrap = wrap.closest('.chip-scroller-wrap');
+    if (!scrollerWrap) return;
+    // Sentinela invisível antes do wrap para detectar quando ele "gruda"
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'height:1px;';
+    scrollerWrap.parentNode.insertBefore(sentinel, scrollerWrap);
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => scrollerWrap.classList.toggle('is-stuck', !e.isIntersecting));
+    }, { threshold: 0 });
+    obs.observe(sentinel);
+  }, 200);
+})();

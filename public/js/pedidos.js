@@ -4,22 +4,43 @@ const $ = (sel) => document.querySelector(sel);
 
 const state = {
   orders: [],
+  statuses: [], // workflow dinâmico
   filter: '',
 };
 
-const NEXT_STATUS = {
-  pendente: { next: 'preparando', label: 'Iniciar preparo' },
-  preparando: { next: 'pronto', label: 'Marcar pronto' },
-  pronto: { next: 'entregue', label: 'Entregar' },
-};
+function findStatusMeta(id) {
+  if (id === 'cancelado') return { id: 'cancelado', name: 'Cancelado', color: 'danger', icon: '✕' };
+  return state.statuses.find(s => s.id === id) || { id, name: id, color: 'neutral', icon: '•' };
+}
 
-const STATUS_LABEL = {
-  pendente: 'Pendente',
-  preparando: 'Preparando',
-  pronto: 'Pronto',
-  entregue: 'Entregue',
-  cancelado: 'Cancelado',
-};
+function getNextStatus(currentId) {
+  const idx = state.statuses.findIndex(s => s.id === currentId);
+  if (idx === -1 || idx >= state.statuses.length - 1) return null;
+  return state.statuses[idx + 1];
+}
+
+async function loadStatuses() {
+  try {
+    const res = await fetch('/api/statuses');
+    state.statuses = (await res.json()).sort((a, b) => a.order - b.order);
+    renderFilters();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderFilters() {
+  const wrap = $('#filters');
+  if (!wrap) return;
+  const chips = [
+    `<button class="category-chip ${state.filter === '' ? 'active' : ''}" data-status="">Todos</button>`,
+    ...state.statuses.map(s =>
+      `<button class="category-chip ${state.filter === s.id ? 'active' : ''}" data-status="${s.id}">${s.icon} ${s.name}</button>`
+    ),
+    `<button class="category-chip ${state.filter === 'cancelado' ? 'active' : ''}" data-status="cancelado">✕ Cancelados</button>`,
+  ];
+  wrap.innerHTML = chips.join('');
+}
 
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -98,10 +119,11 @@ function itemStatusBadge(o, i) {
   if (i.ready) {
     return `<span class="item-badge item-badge-ready">✓ Pronto</span>`;
   }
-  if (o.status !== 'preparando' || !o.preparingAt || !i.prepTime) {
+  // Timer começa a contar a partir da criação do pedido
+  if (o.status === 'cancelado' || o.status === 'entregue' || !i.prepTime) {
     return i.prepTime ? `<span class="item-badge item-badge-time">⏱ ${i.prepTime} min</span>` : '';
   }
-  const elapsedMs = Date.now() - o.preparingAt;
+  const elapsedMs = Date.now() - o.createdAt;
   const totalMs = i.prepTime * 60000;
   const remainMs = totalMs - elapsedMs;
   if (remainMs > 0) {
@@ -113,12 +135,13 @@ function itemStatusBadge(o, i) {
 }
 
 function expectedReadyAt(o) {
-  if (o.status !== 'preparando' || !o.preparingAt) return null;
+  if (o.status === 'cancelado' || o.status === 'entregue') return null;
   const items = Array.isArray(o.items) ? o.items : [];
   if (items.length === 0) return null;
   const maxPrep = Math.max(0, ...items.map(i => parseInt(i.prepTime) || 0));
   if (maxPrep === 0) return null;
-  return o.preparingAt + maxPrep * 60000;
+  // Sempre conta a partir da criação do pedido
+  return o.createdAt + maxPrep * 60000;
 }
 
 function formatClock(ts) {
@@ -126,15 +149,16 @@ function formatClock(ts) {
 }
 
 function renderOrder(o) {
-  const next = NEXT_STATUS[o.status];
-  const canCheck = o.status === 'preparando' || o.status === 'pendente';
+  const next = getNextStatus(o.status);
   const items = Array.isArray(o.items) ? o.items : [];
   const readyCount = items.filter(i => i.ready).length;
-  const hasLate = o.status === 'preparando' && o.preparingAt && items.some(i =>
-    !i.ready && i.prepTime > 0 && (o.preparingAt + i.prepTime * 60000) < Date.now()
+  const isOpen = o.status !== 'cancelado' && o.status !== 'entregue';
+  const hasLate = isOpen && items.some(i =>
+    !i.ready && i.prepTime > 0 && (o.createdAt + i.prepTime * 60000) < Date.now()
   );
   const expectedTs = expectedReadyAt(o);
   const isPastExpected = expectedTs && Date.now() > expectedTs;
+  const statusMeta = findStatusMeta(o.status);
 
   const itemsHtml = items.map((i, idx) => {
     const addons = Array.isArray(i.addons) ? i.addons : [];
@@ -178,7 +202,7 @@ function renderOrder(o) {
           <div class="order-num">#${o.number.toString().padStart(4, '0')}</div>
         </div>
         <div style="text-align:right;">
-          <span class="status-badge status-${o.status}">${STATUS_LABEL[o.status]}</span>
+          <span class="status-badge status-color-${statusMeta.color}">${statusMeta.icon} ${statusMeta.name}</span>
           ${expectedTs ? `<div class="order-expected ${isPastExpected ? 'late' : ''}">⏰ Pronto às ${formatClock(expectedTs)}</div>` : ''}
           <div class="order-time" style="margin-top:6px;">${timeAgo(o.createdAt)}</div>
           ${hasLate ? '<div class="order-late-badge">⚠ Atrasado</div>' : ''}
@@ -197,9 +221,9 @@ function renderOrder(o) {
       <footer class="order-foot">
         <div class="order-total">${fmt(o.total)}</div>
         <div class="order-actions">
-          ${next ? `<button class="order-action" data-action="advance" data-id="${o.id}" data-next="${next.next}">${next.label}</button>` : ''}
-          ${o.status !== 'cancelado' && o.status !== 'entregue' ? `<button class="order-action danger" data-action="cancel" data-id="${o.id}">Cancelar</button>` : ''}
-          ${o.status === 'entregue' || o.status === 'cancelado' ? `<button class="order-action danger" data-action="delete" data-id="${o.id}">Remover</button>` : ''}
+          ${next ? `<button class="order-action" data-action="advance" data-id="${o.id}" data-next="${next.id}">→ ${next.name}</button>` : ''}
+          ${isOpen ? `<button class="order-action danger" data-action="cancel" data-id="${o.id}">Cancelar</button>` : ''}
+          ${!isOpen ? `<button class="order-action danger" data-action="delete" data-id="${o.id}">Remover</button>` : ''}
         </div>
       </footer>
     </article>
@@ -218,7 +242,7 @@ async function updateStatus(id, status) {
       body: JSON.stringify({ status }),
     });
     if (!res.ok) throw new Error();
-    toast(`Status atualizado: ${STATUS_LABEL[status]}`, 'success');
+    toast(`Status atualizado: ${findStatusMeta(status).name}`, 'success');
     fetchOrders();
   } catch {
     toast('Falha ao atualizar', 'error');
@@ -261,6 +285,7 @@ $('#filters').addEventListener('click', (e) => {
 (async () => {
   const user = await Auth.init('pedidos');
   if (!user) return;
+  await loadStatuses();
   fetchOrders();
   setInterval(fetchOrders, 10000); // refresh do servidor
   setInterval(() => {

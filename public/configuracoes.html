@@ -34,6 +34,32 @@
     <section class="dash-card" style="margin-top:18px;">
       <div class="dash-card-head">
         <div>
+          <h3>Identificação de comandas</h3>
+          <span class="dash-card-sub">Escolha quais tipos o garçom pode usar ao abrir um pedido.</span>
+        </div>
+      </div>
+      <div class="comanda-config-list">
+        <label class="perm-toggle">
+          <input type="checkbox" value="mesa" id="ctMesa" />
+          <span class="perm-label">🪑 Por número da mesa</span>
+          <span class="perm-desc">Identificação numérica (ex: Mesa 12)</span>
+        </label>
+        <label class="perm-toggle">
+          <input type="checkbox" value="nome" id="ctNome" />
+          <span class="perm-label">👤 Por nome do cliente</span>
+          <span class="perm-desc">Identificação por nome (ex: João Silva)</span>
+        </label>
+        <label class="perm-toggle">
+          <input type="checkbox" value="codigo" id="ctCodigo" />
+          <span class="perm-label">🎫 Por código da comanda</span>
+          <span class="perm-desc">Comanda física com código (ex: Comanda #042)</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="dash-card" style="margin-top:18px;">
+      <div class="dash-card-head">
+        <div>
           <h3>Status do pedido</h3>
           <span class="dash-card-sub">Ordem em que o pedido avança. "Cancelado" é sempre disponível.</span>
         </div>

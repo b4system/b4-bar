@@ -6,7 +6,15 @@ const state = {
   search: '',
   activeCategory: null,
   cart: [],
-  pendingItem: null, // item aguardando observação
+  pendingItem: null,
+  comandaType: 'mesa',
+  enabledTypes: ['mesa', 'nome', 'codigo'],
+};
+
+const COMANDA_LABELS = {
+  mesa:   { label: 'Mesa',                placeholder: 'Ex: 12',          inputmode: 'numeric' },
+  nome:   { label: 'Nome do cliente',     placeholder: 'Ex: João Silva',  inputmode: 'text' },
+  codigo: { label: 'Código da comanda',   placeholder: 'Ex: 042',         inputmode: 'text' },
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -17,6 +25,7 @@ function saveDraft() {
     cart: state.cart,
     table: $('#tableNumber').value,
     notes: $('#notes').value,
+    comandaType: state.comandaType,
   };
   localStorage.setItem('b4-draft', JSON.stringify(draft));
 }
@@ -29,7 +38,48 @@ function loadDraft() {
     state.cart = d.cart || [];
     if (d.table) $('#tableNumber').value = d.table;
     if (d.notes) $('#notes').value = d.notes;
+    if (d.comandaType && COMANDA_LABELS[d.comandaType]) setComandaType(d.comandaType);
   } catch {}
+}
+
+// ====== Tipo de comanda ======
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    state.enabledTypes = s.enabledComandaTypes || ['mesa'];
+  } catch { state.enabledTypes = ['mesa']; }
+  renderComandaTypeSelector();
+}
+
+function renderComandaTypeSelector() {
+  const wrap = document.querySelector('.comanda-type');
+  if (!wrap) return;
+  // Esconde botões desabilitados
+  wrap.querySelectorAll('.comanda-type-btn').forEach(b => {
+    b.style.display = state.enabledTypes.includes(b.dataset.type) ? '' : 'none';
+  });
+  // Se só um tipo ativo, esconde o seletor inteiro
+  const field = wrap.closest('.field');
+  if (state.enabledTypes.length <= 1 && field) field.style.display = 'none';
+  else if (field) field.style.display = '';
+  // Garante que o tipo selecionado esteja entre os ativos
+  if (!state.enabledTypes.includes(state.comandaType)) {
+    setComandaType(state.enabledTypes[0]);
+  }
+}
+
+function setComandaType(type) {
+  if (!COMANDA_LABELS[type]) return;
+  state.comandaType = type;
+  const info = COMANDA_LABELS[type];
+  $('#comandaLabel').textContent = info.label;
+  const input = $('#tableNumber');
+  input.placeholder = info.placeholder;
+  input.setAttribute('inputmode', info.inputmode);
+  document.querySelectorAll('.comanda-type-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.type === type)
+  );
 }
 
 // ====== Carregar cardápio ======
@@ -279,7 +329,10 @@ async function submitOrder() {
   const user = Auth.getUser();
   const waiter = (user && user.name) || 'Garçom';
   if (!table) {
-    toast('Informe o número da mesa', 'error');
+    const msg = state.comandaType === 'mesa' ? 'Informe o número da mesa'
+              : state.comandaType === 'nome' ? 'Informe o nome do cliente'
+              : 'Informe o código da comanda';
+    toast(msg, 'error');
     $('#tableNumber').focus();
     return;
   }
@@ -296,6 +349,7 @@ async function submitOrder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         table,
+        comandaType: state.comandaType,
         waiter,
         items: state.cart.map(c => {
           const addons = Array.isArray(c.addons) ? c.addons : [];
@@ -314,7 +368,10 @@ async function submitOrder() {
     });
     if (!res.ok) throw new Error('Falha ao enviar');
     const order = await res.json();
-    toast(`Pedido #${order.number} enviado · Mesa ${order.table}`, 'success');
+    const tipoLabel = order.comandaType === 'nome' ? order.table
+                     : order.comandaType === 'codigo' ? `Comanda #${order.table}`
+                     : `Mesa ${order.table}`;
+    toast(`Pedido #${order.number} enviado · ${tipoLabel}`, 'success');
     resetOrderFlow();
     haptic([60, 30, 60]);
   } catch (err) {
@@ -375,6 +432,16 @@ $('#waiterSearch').addEventListener('input', (e) => {
 
 $('#submitOrder').addEventListener('click', submitOrder);
 $('#clearCart').addEventListener('click', clearCart);
+
+document.querySelectorAll('.comanda-type-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    setComandaType(b.dataset.type);
+    $('#tableNumber').value = '';
+    updateSubmitState();
+    saveDraft();
+    $('#tableNumber').focus();
+  });
+});
 ['tableNumber', 'notes'].forEach(id => {
   $(`#${id}`).addEventListener('input', () => { saveDraft(); updateSubmitState(); });
 });
@@ -389,6 +456,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#obsM
 (async function init() {
   const user = await Auth.init('garcom');
   if (!user) return;
+  await loadSettings();
   await loadMenu();
   loadDraft();
   renderCart();

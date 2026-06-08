@@ -60,7 +60,15 @@
         </div>
         <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
           <div class="field">
-            <label for="tableNumber">Mesa</label>
+            <label>Tipo de comanda</label>
+            <div class="comanda-type" role="tablist">
+              <button type="button" class="comanda-type-btn active" data-type="mesa">🪑 <span>Mesa</span></button>
+              <button type="button" class="comanda-type-btn" data-type="nome">👤 <span>Nome</span></button>
+              <button type="button" class="comanda-type-btn" data-type="codigo">🎫 <span>Código</span></button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="tableNumber" id="comandaLabel">Mesa</label>
             <input id="tableNumber" type="text" inputmode="numeric" placeholder="Ex: 12" />
           </div>
         </div>

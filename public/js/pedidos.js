@@ -137,6 +137,13 @@ function itemStatusBadge(o, i) {
   return `<span class="item-badge item-badge-late">⚠ ${lateMin} min atrás</span>`;
 }
 
+function comandaDisplay(o) {
+  const t = o.comandaType || 'mesa';
+  if (t === 'nome')   return { icon: '👤', label: o.table };
+  if (t === 'codigo') return { icon: '🎫', label: `Comanda #${o.table}` };
+  return { icon: '🪑', label: `Mesa ${o.table}` };
+}
+
 function expectedReadyAt(o) {
   if (o.status === 'cancelado' || o.status === 'entregue') return null;
   const items = Array.isArray(o.items) ? o.items : [];
@@ -201,7 +208,7 @@ function renderOrder(o) {
     <article class="order-card ${hasLate ? 'order-card-late' : ''}">
       <header class="order-head">
         <div>
-          <div class="order-table">Mesa ${o.table}</div>
+          <div class="order-table">${comandaDisplay(o).icon} ${comandaDisplay(o).label}</div>
           <div class="order-num">#${o.number.toString().padStart(4, '0')}</div>
         </div>
         <div style="text-align:right;">

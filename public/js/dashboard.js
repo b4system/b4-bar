@@ -111,7 +111,7 @@ function renderLateOrders(list) {
     <a href="/pedidos" class="late-card">
       <div class="late-card-head">
         <div>
-          <div class="late-card-table">Mesa ${o.table}</div>
+          <div class="late-card-table">${o.comandaType === 'nome' ? '👤 ' + o.table : o.comandaType === 'codigo' ? '🎫 Comanda #' + o.table : '🪑 Mesa ' + o.table}</div>
           <div class="late-card-num">#${o.number.toString().padStart(4, '0')} · ${o.waiter}</div>
         </div>
         <div class="late-card-time">⚠ ${o.lateMinutes} min</div>

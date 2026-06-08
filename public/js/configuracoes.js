@@ -17,7 +17,49 @@ const isHex = (c) => typeof c === 'string' && /^#[0-9A-Fa-f]{6}$/.test(c);
   if (!user) return;
   $('#pageContent').style.display = '';
   await loadStatuses();
+  await loadSettings();
+  bindComandaToggles();
 })();
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const s = await res.json();
+    const enabled = s.enabledComandaTypes || ['mesa'];
+    $('#ctMesa').checked = enabled.includes('mesa');
+    $('#ctNome').checked = enabled.includes('nome');
+    $('#ctCodigo').checked = enabled.includes('codigo');
+  } catch {}
+}
+
+function bindComandaToggles() {
+  ['ctMesa', 'ctNome', 'ctCodigo'].forEach(id => {
+    $(`#${id}`).addEventListener('change', saveComandaSettings);
+  });
+}
+
+async function saveComandaSettings(e) {
+  const enabled = [];
+  if ($('#ctMesa').checked) enabled.push('mesa');
+  if ($('#ctNome').checked) enabled.push('nome');
+  if ($('#ctCodigo').checked) enabled.push('codigo');
+  if (enabled.length === 0) {
+    toast('Pelo menos um tipo deve ficar ativo', 'error');
+    if (e?.target) e.target.checked = true; // reverte
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabledComandaTypes: enabled }),
+    });
+    if (!res.ok) throw new Error();
+    toast('Configuração salva', 'success');
+  } catch {
+    toast('Falha ao salvar', 'error');
+  }
+}
 
 async function apiFetch(url, opts = {}) {
   const headers = { ...Auth.authHeaders(), ...(opts.headers || {}) };

@@ -3,5 +3,6 @@ public/uploads/
 data/orders.json
 data/staff.json
 data/statuses.json
+data/settings.json
 data/.session-secret
 .env

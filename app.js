@@ -14,6 +14,7 @@ const MENU_FILE = path.join(DATA_DIR, 'menu.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const STAFF_FILE = path.join(DATA_DIR, 'staff.json');
 const STATUSES_FILE = path.join(DATA_DIR, 'statuses.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -33,6 +34,13 @@ if (!fs.existsSync(STATUSES_FILE)) {
     { id: 'pronto', name: 'Pronto', icon: '✓', color: 'success', order: 3 },
     { id: 'entregue', name: 'Entregue', icon: '📦', color: 'neutral', order: 4 },
   ]);
+}
+
+// Inicializa settings.json com defaults
+if (!fs.existsSync(SETTINGS_FILE)) {
+  writeJSON(SETTINGS_FILE, {
+    enabledComandaTypes: ['mesa', 'nome', 'codigo'],
+  });
 }
 
 // Inicializa staff.json com admin padrão se não existir
@@ -327,6 +335,32 @@ app.put('/api/admin/statuses/reorder', requireAuth(['configuracoes']), (req, res
   res.json(getStatuses());
 });
 
+// ===== API: SETTINGS (globais) =====
+function getSettings() {
+  try {
+    const s = readJSON(SETTINGS_FILE);
+    return {
+      enabledComandaTypes: Array.isArray(s.enabledComandaTypes) && s.enabledComandaTypes.length > 0
+        ? s.enabledComandaTypes.filter(t => ['mesa', 'nome', 'codigo'].includes(t))
+        : ['mesa'],
+    };
+  } catch { return { enabledComandaTypes: ['mesa'] }; }
+}
+
+app.get('/api/settings', (_req, res) => res.json(getSettings()));
+
+app.patch('/api/admin/settings', requireAuth(['configuracoes']), (req, res) => {
+  const cur = getSettings();
+  const { enabledComandaTypes } = req.body;
+  if (Array.isArray(enabledComandaTypes)) {
+    const cleaned = enabledComandaTypes.filter(t => ['mesa', 'nome', 'codigo'].includes(t));
+    if (cleaned.length === 0) return res.status(400).json({ error: 'Pelo menos um tipo de comanda deve estar ativo' });
+    cur.enabledComandaTypes = cleaned;
+  }
+  writeJSON(SETTINGS_FILE, cur);
+  res.json(cur);
+});
+
 // ===== API: CARDÁPIO =====
 app.get('/api/menu', (_req, res) => {
   try { res.json(readJSON(MENU_FILE)); }
@@ -581,7 +615,9 @@ app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
       nowMs - (startTs + i.prepTime * 60000)
     ));
     lateOrders.push({
-      id: o.id, number: o.number, table: o.table, waiter: o.waiter,
+      id: o.id, number: o.number, table: o.table,
+      comandaType: o.comandaType || 'mesa',
+      waiter: o.waiter,
       createdAt: o.createdAt, status: o.status,
       lateMinutes: Math.floor(maxLateMs / 60000),
       lateItems: lateItems.map(i => ({ name: i.name, qty: i.qty, prepTime: i.prepTime })),
@@ -608,10 +644,12 @@ app.get('/api/orders', (_req, res) => {
 });
 
 app.post('/api/orders', (req, res) => {
-  const { table, waiter, items, notes } = req.body;
+  const { table, comandaType, waiter, items, notes } = req.body;
   if (!table || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Mesa e itens são obrigatórios' });
+    return res.status(400).json({ error: 'Identificação da comanda e itens são obrigatórios' });
   }
+  const enabled = getSettings().enabledComandaTypes;
+  const tipo = enabled.includes(comandaType) ? comandaType : (enabled[0] || 'mesa');
   const orders = readJSON(ORDERS_FILE);
   const total = items.reduce((sum, it) => sum + (it.price * it.qty), 0);
 
@@ -632,7 +670,9 @@ app.post('/api/orders', (req, res) => {
   }));
 
   const order = {
-    id: genId(), number: orders.length + 1, table, waiter: waiter || 'Garçom',
+    id: genId(), number: orders.length + 1,
+    table, comandaType: tipo,
+    waiter: waiter || 'Garçom',
     items: enrichedItems, notes: notes || '', total,
     status: 'pendente', createdAt: Date.now(), preparingAt: null,
   };

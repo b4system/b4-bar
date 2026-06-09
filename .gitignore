@@ -6,3 +6,4 @@ data/statuses.json
 data/settings.json
 data/.session-secret
 .env
+deploy/docker-stack.yml

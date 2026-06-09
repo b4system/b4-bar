@@ -1,0 +1,37 @@
+# MODELO (sem segredos). O arquivo real fica SO na VPS em:
+#   /opt/b4bar/deploy/docker-stack.yml   (gitignored)
+# Copie este modelo, preencha os valores reais e salve como docker-stack.yml na VPS.
+version: "3.8"
+
+services:
+  app:
+    image: b4bar:latest
+    networks:
+      - b4SystemRede
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      SESSION_SECRET: "<GERAR_SESSION_SECRET>"
+    volumes:
+      - b4bar_data:/app/data
+      - b4bar_uploads:/app/public/uploads
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 10s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.b4bar.rule=Host(`b4bar.appb4system.com.br`)"
+        - "traefik.http.routers.b4bar.entrypoints=websecure"
+        - "traefik.http.routers.b4bar.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.b4bar.loadbalancer.server.port=8080"
+        - "traefik.docker.network=b4SystemRede"
+
+networks:
+  b4SystemRede:
+    external: true
+
+volumes:
+  b4bar_data:
+  b4bar_uploads:

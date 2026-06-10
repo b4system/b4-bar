@@ -7,15 +7,27 @@ const state = {
   activeCategory: null,
   cart: [],
   pendingItem: null,
-  comandaType: 'mesa',
   enabledTypes: ['mesa', 'nome', 'codigo'],
 };
 
-const COMANDA_LABELS = {
-  mesa:   { label: 'Mesa',                placeholder: 'Ex: 12',          inputmode: 'numeric' },
-  nome:   { label: 'Nome do cliente',     placeholder: 'Ex: João Silva',  inputmode: 'text' },
-  codigo: { label: 'Código da comanda',   placeholder: 'Ex: 042',         inputmode: 'text' },
+const COMANDA_INPUTS = {
+  mesa:   '#comandaMesa',
+  nome:   '#comandaNome',
+  codigo: '#comandaCodigo',
 };
+
+function detectIdType(value) {
+  if (!value || !value.trim()) return null;
+  const digits = value.replace(/\D/g, '');
+  // Tem letra ou caractere de nome → nome
+  if (/[a-záàâãéèêíïóôõöúçñ]/i.test(value)) return { label: 'Nome', icon: '👤' };
+  // Só dígitos (e pontuação)
+  if (digits.length === 11) return { label: 'CPF', icon: '🪪' };
+  if (digits.length === 10) return { label: 'Telefone fixo', icon: '📞' };
+  if (digits.length === 12 || digits.length === 13) return { label: 'Telefone', icon: '📱' };
+  if (digits.length > 0) return { label: 'Número', icon: '#' };
+  return null;
+}
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -23,9 +35,8 @@ const $ = (sel) => document.querySelector(sel);
 function saveDraft() {
   const draft = {
     cart: state.cart,
-    table: $('#tableNumber').value,
     notes: $('#notes').value,
-    comandaType: state.comandaType,
+    comandas: gatherComandas(),
   };
   localStorage.setItem('b4-draft', JSON.stringify(draft));
 }
@@ -36,50 +47,108 @@ function loadDraft() {
     if (!raw) return;
     const d = JSON.parse(raw);
     state.cart = d.cart || [];
-    if (d.table) $('#tableNumber').value = d.table;
     if (d.notes) $('#notes').value = d.notes;
-    if (d.comandaType && COMANDA_LABELS[d.comandaType]) setComandaType(d.comandaType);
+    if (d.comandas) {
+      Object.keys(COMANDA_INPUTS).forEach(t => {
+        const el = $(COMANDA_INPUTS[t]);
+        if (el && d.comandas[t]) el.value = d.comandas[t];
+      });
+    }
+    updateIdBadge();
+    updateNotesBtn();
   } catch {}
 }
 
-// ====== Tipo de comanda ======
+// ====== Modal de observação geral do pedido ======
+function openOrderNotesModal() {
+  $('#orderNotesText').value = $('#notes').value;
+  $('#orderNotesModal').classList.add('open');
+  setTimeout(() => $('#orderNotesText').focus(), 80);
+}
+
+function closeOrderNotesModal() {
+  $('#orderNotesModal').classList.remove('open');
+}
+
+function saveOrderNotes() {
+  $('#notes').value = $('#orderNotesText').value.trim();
+  updateNotesBtn();
+  saveDraft();
+  closeOrderNotesModal();
+}
+
+function clearOrderNotes() {
+  $('#orderNotesText').value = '';
+  $('#notes').value = '';
+  updateNotesBtn();
+  saveDraft();
+  closeOrderNotesModal();
+}
+
+function updateNotesBtn() {
+  const val = ($('#notes').value || '').trim();
+  const btn = $('#notesBtn');
+  const title = $('#notesBtnTitle');
+  const preview = $('#notesBtnPreview');
+  const action = $('#notesBtnAction');
+  if (val) {
+    btn.classList.add('has-value');
+    title.textContent = 'Observação';
+    const max = 60;
+    preview.textContent = val.length > max ? val.slice(0, max) + '…' : val;
+    action.textContent = '✎';
+  } else {
+    btn.classList.remove('has-value');
+    title.textContent = 'Adicionar observação';
+    preview.textContent = '';
+    action.textContent = '+';
+  }
+}
+
+// ====== Comandas (múltiplos campos) ======
 async function loadSettings() {
   try {
     const res = await fetch('/api/settings');
     const s = await res.json();
     state.enabledTypes = s.enabledComandaTypes || ['mesa'];
   } catch { state.enabledTypes = ['mesa']; }
-  renderComandaTypeSelector();
+  applyEnabledFields();
 }
 
-function renderComandaTypeSelector() {
-  const wrap = document.querySelector('.comanda-type');
-  if (!wrap) return;
-  // Esconde botões desabilitados
-  wrap.querySelectorAll('.comanda-type-btn').forEach(b => {
-    b.style.display = state.enabledTypes.includes(b.dataset.type) ? '' : 'none';
+function applyEnabledFields() {
+  document.querySelectorAll('.comanda-field').forEach(f => {
+    f.style.display = state.enabledTypes.includes(f.dataset.type) ? '' : 'none';
   });
-  // Se só um tipo ativo, esconde o seletor inteiro
-  const field = wrap.closest('.field');
-  if (state.enabledTypes.length <= 1 && field) field.style.display = 'none';
-  else if (field) field.style.display = '';
-  // Garante que o tipo selecionado esteja entre os ativos
-  if (!state.enabledTypes.includes(state.comandaType)) {
-    setComandaType(state.enabledTypes[0]);
-  }
 }
 
-function setComandaType(type) {
-  if (!COMANDA_LABELS[type]) return;
-  state.comandaType = type;
-  const info = COMANDA_LABELS[type];
-  $('#comandaLabel').textContent = info.label;
-  const input = $('#tableNumber');
-  input.placeholder = info.placeholder;
-  input.setAttribute('inputmode', info.inputmode);
-  document.querySelectorAll('.comanda-type-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.type === type)
-  );
+function gatherComandas() {
+  const out = {};
+  Object.keys(COMANDA_INPUTS).forEach(t => {
+    const el = $(COMANDA_INPUTS[t]);
+    out[t] = (el && state.enabledTypes.includes(t)) ? (el.value || '').trim() : '';
+  });
+  return out;
+}
+
+function hasAnyComanda() {
+  const c = gatherComandas();
+  return !!(c.mesa || c.nome || c.codigo);
+}
+
+function clearComandaInputs() {
+  Object.values(COMANDA_INPUTS).forEach(sel => { const el = $(sel); if (el) el.value = ''; });
+  updateIdBadge();
+}
+
+function updateIdBadge() {
+  const badge = $('#idDetectBadge');
+  if (!badge) return;
+  const el = $('#comandaNome');
+  if (!el || !state.enabledTypes.includes('nome')) { badge.style.display = 'none'; return; }
+  const detected = detectIdType(el.value);
+  if (!detected) { badge.style.display = 'none'; return; }
+  badge.style.display = '';
+  badge.innerHTML = `${detected.icon} ${detected.label}`;
 }
 
 // ====== Carregar cardápio ======
@@ -317,23 +386,21 @@ function renderCart() {
 
 function updateSubmitState() {
   const submitBtn = $('#submitOrder');
-  const hasTable = $('#tableNumber').value.trim().length > 0;
   const hasItems = state.cart.length > 0;
-  submitBtn.disabled = !(hasTable && hasItems);
+  submitBtn.disabled = !(hasAnyComanda() && hasItems);
 }
 
 // ====== Enviar pedido ======
 async function submitOrder() {
-  const table = $('#tableNumber').value.trim();
+  const comandas = gatherComandas();
   const notes = $('#notes').value.trim();
   const user = Auth.getUser();
   const waiter = (user && user.name) || 'Garçom';
-  if (!table) {
-    const msg = state.comandaType === 'mesa' ? 'Informe o número da mesa'
-              : state.comandaType === 'nome' ? 'Informe o nome do cliente'
-              : 'Informe o código da comanda';
-    toast(msg, 'error');
-    $('#tableNumber').focus();
+  if (!hasAnyComanda()) {
+    toast('Informe pelo menos uma identificação (Mesa, ID ou Código)', 'error');
+    // Foca no primeiro campo habilitado
+    const firstEnabled = state.enabledTypes[0];
+    if (firstEnabled) $(COMANDA_INPUTS[firstEnabled]).focus();
     return;
   }
   if (state.cart.length === 0) {
@@ -348,8 +415,7 @@ async function submitOrder() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        table,
-        comandaType: state.comandaType,
+        comandas,
         waiter,
         items: state.cart.map(c => {
           const addons = Array.isArray(c.addons) ? c.addons : [];
@@ -368,10 +434,12 @@ async function submitOrder() {
     });
     if (!res.ok) throw new Error('Falha ao enviar');
     const order = await res.json();
-    const tipoLabel = order.comandaType === 'nome' ? order.table
-                     : order.comandaType === 'codigo' ? `Comanda #${order.table}`
-                     : `Mesa ${order.table}`;
-    toast(`Pedido #${order.number} enviado · ${tipoLabel}`, 'success');
+    const c = order.comandas || { [order.comandaType || 'mesa']: order.table };
+    const labels = [];
+    if (c.mesa)   labels.push(`Mesa ${c.mesa}`);
+    if (c.codigo) labels.push(`Comanda #${c.codigo}`);
+    if (c.nome)   labels.push(c.nome);
+    toast(`Pedido #${order.number} enviado · ${labels.join(' · ')}`, 'success');
     resetOrderFlow();
     haptic([60, 30, 60]);
   } catch (err) {
@@ -384,16 +452,18 @@ async function submitOrder() {
 
 function resetOrderFlow() {
   state.cart = [];
-  $('#tableNumber').value = '';
+  clearComandaInputs();
   $('#notes').value = '';
+  updateNotesBtn();
   localStorage.removeItem('b4-draft');
   renderCart();
-  // Mobile: fecha a gaveta do carrinho
   if (window.innerWidth <= 900) {
     $('#cart').classList.remove('open');
   }
-  // Volta o foco para o campo de mesa (UX para próximo pedido)
-  setTimeout(() => $('#tableNumber').focus(), 250);
+  setTimeout(() => {
+    const firstEnabled = state.enabledTypes[0];
+    if (firstEnabled) $(COMANDA_INPUTS[firstEnabled]).focus();
+  }, 250);
 }
 
 // ====== Toasts ======
@@ -433,17 +503,20 @@ $('#waiterSearch').addEventListener('input', (e) => {
 $('#submitOrder').addEventListener('click', submitOrder);
 $('#clearCart').addEventListener('click', clearCart);
 
-document.querySelectorAll('.comanda-type-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    setComandaType(b.dataset.type);
-    $('#tableNumber').value = '';
-    updateSubmitState();
-    saveDraft();
-    $('#tableNumber').focus();
-  });
+['comandaMesa', 'comandaNome', 'comandaCodigo'].forEach(id => {
+  const el = $(`#${id}`);
+  if (!el) return;
+  el.addEventListener('input', () => { saveDraft(); updateSubmitState(); });
 });
-['tableNumber', 'notes'].forEach(id => {
-  $(`#${id}`).addEventListener('input', () => { saveDraft(); updateSubmitState(); });
+$('#comandaNome').addEventListener('input', updateIdBadge);
+
+// Modal de observação geral
+$('#notesBtn').addEventListener('click', openOrderNotesModal);
+$('#closeOrderNotes').addEventListener('click', closeOrderNotesModal);
+$('#orderNotesSave').addEventListener('click', saveOrderNotes);
+$('#orderNotesClear').addEventListener('click', clearOrderNotes);
+$('#orderNotesModal').addEventListener('click', (e) => {
+  if (e.target.id === 'orderNotesModal') closeOrderNotesModal();
 });
 
 // Bindings do modal de observação + adicionais

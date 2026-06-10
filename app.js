@@ -52,7 +52,7 @@ if (!fs.existsSync(STAFF_FILE)) {
       username: 'admin',
       password: bcrypt.hashSync('admin123', BCRYPT_ROUNDS),
       role: 'admin',
-      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios', 'dashboard', 'configuracoes'],
+      permissions: ['cardapio', 'garcom', 'pedidos', 'produtos', 'funcionarios', 'dashboard', 'configuracoes', 'fechamento'],
       active: true,
       createdAt: Date.now(),
     }
@@ -63,7 +63,7 @@ if (!fs.existsSync(STAFF_FILE)) {
   let changed = false;
   staff.forEach(s => {
     if (s.id === 'admin') {
-      ['dashboard', 'configuracoes'].forEach(p => {
+      ['dashboard', 'configuracoes', 'fechamento'].forEach(p => {
         if (!s.permissions.includes(p)) { s.permissions.push(p); changed = true; }
       });
     }
@@ -159,6 +159,7 @@ app.get('/dashboard', (_req, res) => res.sendFile(path.join(__dirname, 'public',
 app.get('/configuracoes', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'configuracoes.html')));
 // Área Interna entra na primeira aba disponível para o usuário (decidido no client)
 app.get('/area-interna', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'area-interna.html')));
+app.get('/fechamento', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'fechamento.html')));
 
 // ===== API: AUTENTICAÇÃO =====
 app.post('/api/auth/login', async (req, res) => {
@@ -636,6 +637,58 @@ app.get('/api/dashboard/summary', requireAuth(['dashboard']), (req, res) => {
   });
 });
 
+// ===== API: COMANDAS (fechamento) =====
+app.get('/api/comandas', requireAuth(['fechamento']), (_req, res) => {
+  const orders = readJSON(ORDERS_FILE);
+  const map = {};
+  orders.forEach(o => {
+    if (o.closed) return;
+    if (o.status === 'cancelado') return;
+    const type = o.comandaType || 'mesa';
+    const key = `${type}::${o.table}`;
+    if (!map[key]) {
+      map[key] = {
+        type, identifier: o.table,
+        comandas: o.comandas || { mesa: '', nome: '', codigo: '', [type]: o.table },
+        orders: [], totalValue: 0, ordersCount: 0, itemsCount: 0,
+        firstAt: o.createdAt, lastAt: o.createdAt,
+      };
+    }
+    const c = map[key];
+    c.orders.push({
+      id: o.id, number: o.number, status: o.status,
+      total: o.total, createdAt: o.createdAt, items: o.items, notes: o.notes,
+    });
+    c.totalValue += o.total;
+    c.ordersCount += 1;
+    c.itemsCount += (Array.isArray(o.items) ? o.items.reduce((s, i) => s + (i.qty || 0), 0) : 0);
+    if (o.createdAt < c.firstAt) c.firstAt = o.createdAt;
+    if (o.createdAt > c.lastAt) c.lastAt = o.createdAt;
+  });
+  const list = Object.values(map).sort((a, b) => b.lastAt - a.lastAt);
+  res.json(list);
+});
+
+app.post('/api/comandas/close', requireAuth(['fechamento']), (req, res) => {
+  const { type, identifier } = req.body;
+  if (!type || !identifier) return res.status(400).json({ error: 'type e identifier obrigatórios' });
+  const orders = readJSON(ORDERS_FILE);
+  const now = Date.now();
+  let count = 0, total = 0;
+  orders.forEach(o => {
+    const t = o.comandaType || 'mesa';
+    if (o.closed || o.status === 'cancelado') return;
+    if (t !== type || o.table !== identifier) return;
+    o.closed = true;
+    o.closedAt = now;
+    count++;
+    total += o.total;
+  });
+  if (count === 0) return res.status(404).json({ error: 'Comanda em aberto não encontrada' });
+  writeJSON(ORDERS_FILE, orders);
+  res.json({ ok: true, closedCount: count, totalValue: total });
+});
+
 // ===== API: PEDIDOS =====
 app.get('/api/orders', (_req, res) => {
   const orders = readJSON(ORDERS_FILE);
@@ -644,12 +697,40 @@ app.get('/api/orders', (_req, res) => {
 });
 
 app.post('/api/orders', (req, res) => {
-  const { table, comandaType, waiter, items, notes } = req.body;
-  if (!table || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Identificação da comanda e itens são obrigatórios' });
+  const { table, comandaType, comandas, waiter, items, notes } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Itens são obrigatórios' });
   }
+
+  // Consolida campos de comanda (novo formato + compat com table/comandaType)
+  const finalComandas = { mesa: '', nome: '', codigo: '' };
+  if (comandas && typeof comandas === 'object') {
+    finalComandas.mesa   = String(comandas.mesa   || '').trim();
+    finalComandas.nome   = String(comandas.nome   || '').trim();
+    finalComandas.codigo = String(comandas.codigo || '').trim();
+  }
+  // Compatibilidade com clientes antigos que mandam só table+comandaType
+  if (!finalComandas.mesa && !finalComandas.nome && !finalComandas.codigo && table && comandaType) {
+    finalComandas[comandaType] = String(table).trim();
+  }
+
+  if (!finalComandas.mesa && !finalComandas.nome && !finalComandas.codigo) {
+    return res.status(400).json({ error: 'Informe pelo menos uma identificação da comanda' });
+  }
+
+  // Determina identificador primário (mesa > codigo > nome)
   const enabled = getSettings().enabledComandaTypes;
-  const tipo = enabled.includes(comandaType) ? comandaType : (enabled[0] || 'mesa');
+  const priorityOrder = ['mesa', 'codigo', 'nome'];
+  let primaryType = null, primaryValue = '';
+  for (const t of priorityOrder) {
+    if (finalComandas[t] && enabled.includes(t)) { primaryType = t; primaryValue = finalComandas[t]; break; }
+  }
+  if (!primaryType) {
+    for (const t of priorityOrder) {
+      if (finalComandas[t]) { primaryType = t; primaryValue = finalComandas[t]; break; }
+    }
+  }
+  const tipo = primaryType;
   const orders = readJSON(ORDERS_FILE);
   const total = items.reduce((sum, it) => sum + (it.price * it.qty), 0);
 
@@ -671,10 +752,12 @@ app.post('/api/orders', (req, res) => {
 
   const order = {
     id: genId(), number: orders.length + 1,
-    table, comandaType: tipo,
+    table: primaryValue, comandaType: tipo,
+    comandas: finalComandas,
     waiter: waiter || 'Garçom',
     items: enrichedItems, notes: notes || '', total,
     status: 'pendente', createdAt: Date.now(), preparingAt: null,
+    closed: false, closedAt: null,
   };
   orders.push(order);
   writeJSON(ORDERS_FILE, orders);

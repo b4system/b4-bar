@@ -1191,12 +1191,27 @@ a { color: inherit; text-decoration: none; }
 }
 .modal-close:hover { background: var(--danger); color: white; border-color: transparent; }
 
+.modal {
+  overflow-x: hidden;
+}
+
 .modal-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   max-height: calc(80vh - 180px);
   padding: 2px;
 }
+
+/* Garante que tudo dentro do modal possa encolher sem extrapolar */
+.modal-scroll *,
+.modal .form-grid,
+.modal .form-row-2,
+.modal .form-row-3,
+.modal .addons-add-row,
+.modal .field input,
+.modal .field textarea,
+.modal .field select { min-width: 0; max-width: 100%; }
 
 .modal-foot {
   display: grid;
@@ -1443,13 +1458,72 @@ a { color: inherit; text-decoration: none; }
   .admin-toolbar .btn-sm { flex: 1; justify-content: center; }
   .admin-item { grid-template-columns: 42px 1fr auto; gap: 8px; padding: 7px; }
   .admin-item-thumb { width: 42px; height: 42px; }
-  .modal { padding: 14px 12px; max-width: 100%; border-radius: var(--radius) var(--radius) 0 0; }
-  .modal-backdrop { padding: 0; align-items: flex-end; }
-  .modal-scroll { max-height: calc(85vh - 160px); }
-  .modal-product { max-width: 100%; }
   .form-row-2 { grid-template-columns: 1fr; }
   .emoji-grid { grid-template-columns: repeat(7, 1fr); }
 }
+
+/* ====== MODAL MOBILE (bottom-sheet com altura otimizada) ====== */
+@media (max-width: 768px) {
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .modal {
+    max-width: 100%;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 92vh;
+    gap: 10px;
+    overflow-x: hidden; /* sem scroll lateral */
+  }
+  .modal-product {
+    max-width: 100%;
+  }
+  .modal-head h3 { font-size: 17px; }
+  .modal-scroll {
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 2px 4px;
+    overflow-x: hidden; /* impede deslizar a tela pro lado */
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Tudo que está dentro precisa poder encolher */
+  .modal-scroll *,
+  .form-grid,
+  .form-row-2,
+  .form-row-3,
+  .addons-add-row,
+  .field input,
+  .field textarea,
+  .field select { min-width: 0; max-width: 100%; }
+  .modal-foot {
+    padding-top: 8px;
+    gap: 8px;
+  }
+  .image-slot { font-size: 11px; }
+  .image-slot-label { font-size: 9.5px; }
+  /* Adicionais: encolhe colunas pra caber em mobile */
+  .addons-add-row { grid-template-columns: 1fr 70px 34px; gap: 6px; }
+  .addons-add-row input { padding: 9px 10px; font-size: 13px; }
+  .addons-add-btn { width: 34px; height: 34px; font-size: 18px; }
+}
+
+/* Telas bem pequenas: encolhe um pouco mais */
+@media (max-width: 380px) {
+  .modal { padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .image-slots { gap: 6px; }
+  .form-row-3 { gap: 8px; }
+  .addons-add-row { grid-template-columns: 1fr 60px 32px; gap: 5px; }
+  .addons-add-row input { padding: 8px; font-size: 12.5px; }
+  .addons-add-btn { width: 32px; height: 32px; font-size: 17px; }
+  .addons-section { padding: 10px; }
+  .check-row { padding: 10px; }
+}
+
+/* Bloqueia scroll horizontal em qualquer lugar */
+html, body { overflow-x: hidden; max-width: 100%; }
 
 /* ====== THEME TOGGLE ====== */
 .theme-toggle {
@@ -1846,50 +1920,363 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--border-strong);
 }
 
-/* ====== COMANDA TYPE (segmented control) ====== */
-.comanda-type {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+/* ====== ID DETECTOR BADGE ====== */
+.comanda-input-wrap {
+  position: relative;
 }
 
-.comanda-type-btn {
+.id-detect-badge {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  pointer-events: none;
+  display: none;
+}
+
+.comanda-input-wrap input { padding-right: 110px; }
+
+/* ====== FECHAMENTO ====== */
+.comanda-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.summary-item {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.summary-item.summary-primary {
+  background: linear-gradient(135deg, var(--accent), #C97B10);
+  border-color: transparent;
+  color: #fff;
+}
+
+.summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+
+.summary-primary .summary-label { color: rgba(255,255,255,0.85); }
+
+.summary-value {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-0);
+  letter-spacing: 0.2px;
+}
+
+.summary-primary .summary-value { color: #fff; }
+
+.comandas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.comanda-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.comanda-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+}
+
+.comanda-title {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 9px 10px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 700;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.comanda-icon { font-size: 22px; }
+
+.comanda-label {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-0);
+  letter-spacing: -0.3px;
+}
+
+.comanda-meta {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-2);
-  background: transparent;
-  border: none;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.comanda-body { padding: 12px 16px; flex: 1; }
+
+.comanda-toggle {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-1);
   cursor: pointer;
   transition: all 0.15s;
+  margin-bottom: 10px;
+}
+.comanda-toggle:hover { background: var(--bg-3); }
+
+.comanda-orders-list {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comanda-card.expanded .comanda-orders-list { display: flex; }
+
+.comanda-order {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.comanda-order-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.comanda-order-num {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-2);
+}
+
+.comanda-order-status {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.comanda-order-time {
+  font-size: 11px;
+  color: var(--text-3);
+  flex: 1;
+}
+
+.comanda-order-total {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--price-color);
+}
+
+.comanda-order-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.comanda-order-item {
+  font-size: 11.5px;
+  background: var(--bg-1);
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--text-1);
+}
+
+.comanda-order-item b { color: var(--accent); margin-right: 2px; }
+
+.comanda-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-0);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.comanda-total-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.comanda-total-value {
+  font-family: var(--font-price);
+  font-style: italic;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--price-color);
+  letter-spacing: 0.2px;
+}
+
+.comanda-foot .btn { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .comanda-summary { grid-template-columns: 1fr; }
+  .comandas-grid { grid-template-columns: 1fr; }
+  .comanda-foot { flex-direction: column; align-items: stretch; }
+  .comanda-foot .btn { width: 100%; }
+}
+
+/* ====== BOTÃO DE OBSERVAÇÃO GERAL ====== */
+.notes-btn {
+  display: grid;
+  grid-template-columns: 24px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--bg-2);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-family: var(--font);
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.notes-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+.notes-btn.has-value {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  border-style: solid;
+  color: var(--text-0);
+}
+
+.notes-btn-icon { font-size: 16px; line-height: 1; }
+
+.notes-btn-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notes-btn-title {
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: -0.1px;
 }
 
-.comanda-type-btn:hover { color: var(--text-0); }
-
-.comanda-type-btn.active {
-  background: var(--text-0);
-  color: var(--bg-1);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+.notes-btn.has-value .notes-btn-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--warn);
 }
 
-[data-theme="dark"] .comanda-type-btn.active {
-  background: var(--accent);
-  color: #111;
+.notes-btn-preview {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-1);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-@media (max-width: 380px) {
-  .comanda-type-btn span { display: none; }
-  .comanda-type-btn { font-size: 18px; padding: 9px 4px; }
+.notes-btn-preview:empty { display: none; }
+
+.notes-btn-action {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.notes-btn.has-value .notes-btn-action { color: var(--warn); }
+
+/* ====== BLOCO DE CAMPOS DA COMANDA ====== */
+.comanda-fields-block {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comanda-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.comanda-fields-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-0);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0;
+}
+
+.comanda-fields-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
+.comanda-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.comanda-field { gap: 4px; }
+
+.comanda-field label {
+  font-size: 11.5px;
+  color: var(--text-1);
 }
 
 /* ====== CHECK ROW (admin) ====== */
@@ -2741,8 +3128,36 @@ a { color: inherit; text-decoration: none; }
 .color-swatch.color-danger  { background: var(--danger); }
 
 @media (max-width: 640px) {
-  .status-config-row { grid-template-columns: 24px 36px 1fr auto; gap: 8px; padding: 10px; }
-  .status-icon-preview { width: 36px; height: 36px; font-size: 18px; }
+  /* Quebra as ações para uma segunda linha (cabe todos os botões) */
+  .status-config-row {
+    grid-template-columns: 24px 36px 1fr;
+    grid-template-areas:
+      "drag icon info"
+      "actions actions actions";
+    row-gap: 10px;
+    gap: 8px;
+    padding: 10px;
+  }
+  .status-drag        { grid-area: drag; }
+  .status-icon-preview { grid-area: icon; width: 36px; height: 36px; font-size: 18px; }
+  .status-info        { grid-area: info; }
+  .status-config-actions {
+    grid-area: actions;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .status-config-actions .icon-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  /* O bloco "Cancelado" (locked) volta a 2 colunas */
+  .status-config-row.status-locked {
+    grid-template-areas: "icon info";
+    grid-template-columns: 36px 1fr;
+    row-gap: 0;
+  }
 }
 
 /* ====== DASHBOARD — PEDIDOS ATRASADOS ====== */

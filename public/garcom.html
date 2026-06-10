@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#D2C8AC" />
+  <meta name="theme-color" content="#181818" />
   <title>B4 Bar — Garçom</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css" />
-  <script>const _t=localStorage.getItem('b4_theme')||'light';document.documentElement.setAttribute('data-theme',_t);</script>
+  <script>const _t=localStorage.getItem('b4_theme')||'dark';document.documentElement.setAttribute('data-theme',_t);</script>
 </head>
 <body>
   <header class="app-header">
@@ -59,25 +59,41 @@
           </div>
         </div>
         <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
-          <div class="field">
-            <label>Tipo de comanda</label>
-            <div class="comanda-type" role="tablist">
-              <button type="button" class="comanda-type-btn active" data-type="mesa">🪑 <span>Mesa</span></button>
-              <button type="button" class="comanda-type-btn" data-type="nome">👤 <span>Nome</span></button>
-              <button type="button" class="comanda-type-btn" data-type="codigo">🎫 <span>Código</span></button>
+          <div class="comanda-fields-block">
+            <div class="comanda-fields-head">
+              <label class="comanda-fields-label">Identificação da comanda</label>
+              <span class="comanda-fields-hint">Preencha pelo menos um</span>
             </div>
-          </div>
-          <div class="field">
-            <label for="tableNumber" id="comandaLabel">Mesa</label>
-            <input id="tableNumber" type="text" inputmode="numeric" placeholder="Ex: 12" />
+            <div class="comanda-fields" id="comandaFields">
+              <div class="field comanda-field" data-type="mesa">
+                <label for="comandaMesa">🪑 Mesa</label>
+                <input id="comandaMesa" type="text" inputmode="numeric" placeholder="Ex: 12" autocomplete="off" />
+              </div>
+              <div class="field comanda-field" data-type="nome">
+                <label for="comandaNome">🪪 ID <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-2);">(nome, telefone ou CPF)</span></label>
+                <div class="comanda-input-wrap">
+                  <input id="comandaNome" type="text" placeholder="Ex: João, (11) 99999-0000" autocomplete="off" />
+                  <span class="id-detect-badge" id="idDetectBadge"></span>
+                </div>
+              </div>
+              <div class="field comanda-field" data-type="codigo">
+                <label for="comandaCodigo">🎫 Código da comanda</label>
+                <input id="comandaCodigo" type="text" placeholder="Ex: 042" autocomplete="off" />
+              </div>
+            </div>
           </div>
         </div>
         <div id="cartItems" class="cart-items"></div>
         <div class="panel-body" style="padding-top:0;">
-          <div class="field">
-            <label for="notes">Observações (opcional)</label>
-            <textarea id="notes" placeholder="Ex: sem gelo, sem cebola, ponto da carne..."></textarea>
-          </div>
+          <button type="button" class="notes-btn" id="notesBtn">
+            <span class="notes-btn-icon">💬</span>
+            <span class="notes-btn-content">
+              <span class="notes-btn-title" id="notesBtnTitle">Adicionar observação</span>
+              <span class="notes-btn-preview" id="notesBtnPreview"></span>
+            </span>
+            <span class="notes-btn-action" id="notesBtnAction">+</span>
+          </button>
+          <textarea id="notes" style="display:none;"></textarea>
         </div>
         <div class="cart-footer">
           <div style="display:flex;gap:8px;">
@@ -122,6 +138,26 @@
         <button class="btn btn-primary" id="obsAdd">
           Adicionar <span id="obsAddPrice" class="obs-add-price"></span>
         </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal de observação geral do pedido -->
+  <div class="modal-backdrop" id="orderNotesModal">
+    <div class="modal">
+      <header class="modal-head">
+        <h3>Observação do pedido</h3>
+        <button class="modal-close" id="closeOrderNotes" aria-label="Fechar">&times;</button>
+      </header>
+      <div class="form-grid">
+        <div class="field">
+          <label for="orderNotesText">Anote algo geral sobre o pedido inteiro</label>
+          <textarea id="orderNotesText" rows="4" placeholder="Ex: sem gelo, sem cebola, levar guardanapos extras..."></textarea>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn-ghost" id="orderNotesClear">Limpar</button>
+        <button class="btn btn-primary" id="orderNotesSave">Salvar</button>
       </footer>
     </div>
   </div>

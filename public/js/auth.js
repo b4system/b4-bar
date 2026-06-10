@@ -1,8 +1,8 @@
 // ===== B4 Bar — Auth + Navegação Dinâmica =====
 
-// Aplica o tema salvo antes de qualquer render (evita flash)
+// Aplica o tema salvo antes de qualquer render (evita flash). Padrão: dark.
 (function() {
-  const saved = localStorage.getItem('b4_theme') || 'light';
+  const saved = localStorage.getItem('b4_theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
 })();
 
@@ -12,9 +12,10 @@ const Auth = (() => {
 
   // Páginas do nav principal (Área Interna agrupa dashboard/produtos/funcionários/configurações)
   const PAGES = [
-    { path: '/',              label: 'Cardápio',      perm: null,         icon: '📖' },
-    { path: '/garcom',        label: 'Garçom',        perm: 'garcom',     icon: '📝' },
-    { path: '/pedidos',       label: 'Pedidos',       perm: 'pedidos',    icon: '🧾' },
+    { path: '/',              label: 'Cardápio',      perm: null,           icon: '📖' },
+    { path: '/garcom',        label: 'Garçom',        perm: 'garcom',       icon: '📝' },
+    { path: '/pedidos',       label: 'Pedidos',       perm: 'pedidos',      icon: '🧾' },
+    { path: '/fechamento',    label: 'Fechamento',    perm: 'fechamento',   icon: '💵' },
     { path: '/area-interna',  label: 'Área Interna',  perm: null, icon: '⚙️',
       anyPerms: ['dashboard', 'produtos', 'funcionarios', 'configuracoes'] },
   ];

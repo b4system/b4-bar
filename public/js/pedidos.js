@@ -138,10 +138,14 @@ function itemStatusBadge(o, i) {
 }
 
 function comandaDisplay(o) {
-  const t = o.comandaType || 'mesa';
-  if (t === 'nome')   return { icon: '👤', label: o.table };
-  if (t === 'codigo') return { icon: '🎫', label: `Comanda #${o.table}` };
-  return { icon: '🪑', label: `Mesa ${o.table}` };
+  // Novo formato: objeto comandas com múltiplos campos
+  const c = o.comandas || { [o.comandaType || 'mesa']: o.table };
+  const parts = [];
+  if (c.mesa)   parts.push(`🪑 Mesa ${c.mesa}`);
+  if (c.codigo) parts.push(`🎫 #${c.codigo}`);
+  if (c.nome)   parts.push(`🪪 ${c.nome}`);
+  if (parts.length === 0) parts.push(`🪑 Mesa ${o.table || '?'}`);
+  return { icon: '', label: parts.join(' · ') };
 }
 
 function expectedReadyAt(o) {
@@ -208,7 +212,7 @@ function renderOrder(o) {
     <article class="order-card ${hasLate ? 'order-card-late' : ''}">
       <header class="order-head">
         <div>
-          <div class="order-table">${comandaDisplay(o).icon} ${comandaDisplay(o).label}</div>
+          <div class="order-table">${comandaDisplay(o).label}</div>
           <div class="order-num">#${o.number.toString().padStart(4, '0')}</div>
         </div>
         <div style="text-align:right;">

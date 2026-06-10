@@ -18,6 +18,7 @@ const PERM_LABELS = {
   produtos: 'Produtos',
   funcionarios: 'Funcionários',
   configuracoes: 'Configurações',
+  fechamento: 'Fechamento',
 };
 
 const state = {

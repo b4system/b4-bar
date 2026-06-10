@@ -15,6 +15,9 @@ docker build -t b4bar:latest .
 echo "[redeploy] docker stack deploy ..."
 docker stack deploy -c deploy/docker-stack.yml b4bar --resolve-image never
 
+echo "[redeploy] forcando restart do servico para usar nova imagem ..."
+docker service update --force b4bar_app
+
 echo "[redeploy] aguardando convergencia do servico app ..."
 for i in $(seq 1 30); do
   rep=$(docker service ls --filter name=b4bar_app --format '{{.Replicas}}')
